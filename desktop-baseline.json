@@ -1,0 +1,612 @@
+{
+  "appVersion": "1.16.0",
+  "executableFileVersion": "44.5.1",
+  "mainSha256": "733145c1220bbee12b763ddfa39a0aef49627a84ec3136efac14e5d295243ccc",
+  "files": {
+    "Gemini.exe": {
+      "size": 246270104,
+      "sha256": "6aaf5e902f9098f6efff995110559e89117e5c15ae50994788dba07c6b82f6dd"
+    },
+    "GeminiAppLauncher.exe": {
+      "size": 1371288,
+      "sha256": "13b8b2732bdf523dd4615359981d4ae34665d09aeef29fc11ee8235ea1a34dff"
+    },
+    "resources/app.asar": {
+      "size": 340966,
+      "sha256": "5e4e33ffb766239ed84a4c2deb25195b091ab9443d875fc539fa9d0ed4928f61"
+    },
+    "resources/app.asar.unpacked/assets/fonts/fonts.css": {
+      "size": 1375,
+      "sha256": "280cb1641b339397c223e69b68f7c63e934dcb9a41745bf1c5c2ca0f2f99826c"
+    },
+    "resources/app.asar.unpacked/assets/fonts/google_sans_bold.woff2": {
+      "size": 18024,
+      "sha256": "693feb48690aab9c0dd2c19dd90c920058974768b961d21cbffcf80b09a28bf8"
+    },
+    "resources/app.asar.unpacked/assets/fonts/google_sans_medium.woff2": {
+      "size": 18444,
+      "sha256": "b43b4d452e96dd88efebaac316963dd98bdeae039a128630ced066c9b27fe22c"
+    },
+    "resources/app.asar.unpacked/assets/fonts/google_sans_regular.woff2": {
+      "size": 17232,
+      "sha256": "64d15b02b083688c10debe8a1f06e5b39544e18535f6a068c28dd64587215d8c"
+    },
+    "resources/app.asar.unpacked/assets/fonts/google_sans_semibold.woff2": {
+      "size": 18628,
+      "sha256": "883c8525ec73d1e13f29a0d8750783ba09babe782052896849909e89a415358c"
+    },
+    "resources/app.asar.unpacked/assets/fonts/google_sans_text_bold.woff2": {
+      "size": 18420,
+      "sha256": "e8fb75da0aa945f22770fba96fe3c878c38266da55b251a3762be6c8aebde771"
+    },
+    "resources/app.asar.unpacked/assets/fonts/google_sans_text_medium.woff2": {
+      "size": 18944,
+      "sha256": "390455e1c57571d20f9b9299afac87f8fc5339f6c7abc41156315704e944233d"
+    },
+    "resources/app.asar.unpacked/assets/fonts/google_sans_text_regular.woff2": {
+      "size": 17780,
+      "sha256": "fd931a88424281eb7c7cb887904bcd6b890713ed28506dc318a7e57409f69f42"
+    },
+    "resources/app.asar.unpacked/assets/icon.ico": {
+      "size": 370070,
+      "sha256": "45a9fa6690d29eb7f2fc384f1a26d26e855eee7faae5dc46eb4760aaa76b6357"
+    },
+    "resources/app.asar.unpacked/assets/icon.png": {
+      "size": 111294,
+      "sha256": "1545adfcb69b9c46b9239473f93434dda85d6c8733217b7c4455e9715adcfa8b"
+    },
+    "resources/app.asar.unpacked/assets/overlay_tokens.css": {
+      "size": 9559,
+      "sha256": "74d58f45092def0d6d3f6dd41ca59864aae34247ce0046fcd8a3cd882cbb7c94"
+    },
+    "resources/app.asar.unpacked/assets/spark.svg": {
+      "size": 10129,
+      "sha256": "57bf9e482f1a2d4c10e9f0778af6cb3eb7a0038c51cd9bb0761073bb7404e88e"
+    },
+    "resources/app.asar.unpacked/package.json": {
+      "size": 1030,
+      "sha256": "297ef9811636e73fb1a24d77144914da731151d29ecdfa88858d8b9e07d41e28"
+    },
+    "resources/app.asar.unpacked/src/gemini_native.node": {
+      "size": 537240,
+      "sha256": "ce42f5674a66b16cd2af117dc630880f9594f17864905308bf6681df72bbcf7d"
+    },
+    "resources/app.asar.unpacked/src/_locales/af/messages.json": {
+      "size": 13489,
+      "sha256": "800f54f3ab1f4852dc2d52686bde636077922417b4a24ed3e1516f0c566be86a"
+    },
+    "resources/app.asar.unpacked/src/_locales/am/messages.json": {
+      "size": 25748,
+      "sha256": "0518234e62e604c7f8bd609e2164cb2968380c13f83312976b58e9ce5dffddba"
+    },
+    "resources/app.asar.unpacked/src/_locales/ar/messages.json": {
+      "size": 34723,
+      "sha256": "fd4ee18f3da0402493fda0fe7040211995b714494af9c69a7f7ae3196c4c7a31"
+    },
+    "resources/app.asar.unpacked/src/_locales/ar_DZ/messages.json": {
+      "size": 34723,
+      "sha256": "fd4ee18f3da0402493fda0fe7040211995b714494af9c69a7f7ae3196c4c7a31"
+    },
+    "resources/app.asar.unpacked/src/_locales/ar_EG/messages.json": {
+      "size": 34723,
+      "sha256": "fd4ee18f3da0402493fda0fe7040211995b714494af9c69a7f7ae3196c4c7a31"
+    },
+    "resources/app.asar.unpacked/src/_locales/ar_JO/messages.json": {
+      "size": 34723,
+      "sha256": "fd4ee18f3da0402493fda0fe7040211995b714494af9c69a7f7ae3196c4c7a31"
+    },
+    "resources/app.asar.unpacked/src/_locales/ar_MA/messages.json": {
+      "size": 34723,
+      "sha256": "fd4ee18f3da0402493fda0fe7040211995b714494af9c69a7f7ae3196c4c7a31"
+    },
+    "resources/app.asar.unpacked/src/_locales/ar_SA/messages.json": {
+      "size": 34723,
+      "sha256": "fd4ee18f3da0402493fda0fe7040211995b714494af9c69a7f7ae3196c4c7a31"
+    },
+    "resources/app.asar.unpacked/src/_locales/ar_XB/messages.json": {
+      "size": 32357,
+      "sha256": "fa14ad0df9ddc49e9982c8575b10ae39407d5621c4f0b20b29e0c28a2be56c52"
+    },
+    "resources/app.asar.unpacked/src/_locales/as/messages.json": {
+      "size": 36307,
+      "sha256": "b72041b66ebe75c3a551f091c630204770ff866b10de9d178cb24eeb0845f27f"
+    },
+    "resources/app.asar.unpacked/src/_locales/az/messages.json": {
+      "size": 17918,
+      "sha256": "6820180bbc96265be39788ebfd8de1c1506a7fd05ebd592ece02e5f1a791036a"
+    },
+    "resources/app.asar.unpacked/src/_locales/be/messages.json": {
+      "size": 39662,
+      "sha256": "3017431627e6d4f2cd1bf6ce3725496fc0082fbeb2b6c383118d3f30670444ba"
+    },
+    "resources/app.asar.unpacked/src/_locales/bg/messages.json": {
+      "size": 38345,
+      "sha256": "c71fd6d3a60ecc3968c7ebeaf6326a9953805102f776622428cbe9f87d2167c0"
+    },
+    "resources/app.asar.unpacked/src/_locales/bn/messages.json": {
+      "size": 35868,
+      "sha256": "0f6bd2efd9059521837b32e2acbf7f2fb455ddab8c1a053db148bcb4244efead"
+    },
+    "resources/app.asar.unpacked/src/_locales/bs/messages.json": {
+      "size": 14242,
+      "sha256": "0a4feb1db7d8de7c2d23534cfd0e57dd6203285ed0da2fbc3a769cef9ddc4252"
+    },
+    "resources/app.asar.unpacked/src/_locales/ca/messages.json": {
+      "size": 14837,
+      "sha256": "0aa5ae03073f6af05490dbda87df9c55d6f1df620c6df7e5f66caa02829b5d17"
+    },
+    "resources/app.asar.unpacked/src/_locales/cs/messages.json": {
+      "size": 16317,
+      "sha256": "ae535c32cb8c768343e230f903d32036cb961ff2b7dbd6ac0ed428eea696ee99"
+    },
+    "resources/app.asar.unpacked/src/_locales/da/messages.json": {
+      "size": 13732,
+      "sha256": "0506a7d0e70e5d8cb43097610bfe28995f4687a3d3d24d6e157afaf170aee41c"
+    },
+    "resources/app.asar.unpacked/src/_locales/de/messages.json": {
+      "size": 14751,
+      "sha256": "84d09a67b8d1cf8ae2f5bbb02bc10df0c20d948dd9fa5ab17858e5cd3834807e"
+    },
+    "resources/app.asar.unpacked/src/_locales/de_AT/messages.json": {
+      "size": 14751,
+      "sha256": "84d09a67b8d1cf8ae2f5bbb02bc10df0c20d948dd9fa5ab17858e5cd3834807e"
+    },
+    "resources/app.asar.unpacked/src/_locales/de_CH/messages.json": {
+      "size": 14751,
+      "sha256": "84d09a67b8d1cf8ae2f5bbb02bc10df0c20d948dd9fa5ab17858e5cd3834807e"
+    },
+    "resources/app.asar.unpacked/src/_locales/el/messages.json": {
+      "size": 40703,
+      "sha256": "fe424b8edffd735a94e386b5621c20c6984031909181a43fbec34c475980ef94"
+    },
+    "resources/app.asar.unpacked/src/_locales/en/messages.json": {
+      "size": 37112,
+      "sha256": "d2e195111e0e7e7d0c5c5f98aba3a800a7626fd6f4e6023c9156d62cc37e4f40"
+    },
+    "resources/app.asar.unpacked/src/_locales/en_AU/messages.json": {
+      "size": 12701,
+      "sha256": "faf17a32415db812f1e9338d8db3de1c64f4fd736cdbca1f551466ca5f61f85e"
+    },
+    "resources/app.asar.unpacked/src/_locales/en_CA/messages.json": {
+      "size": 12797,
+      "sha256": "c1e16ca03efcdad8ae35a13564f1aaadc32144bc994493c6e0461b57d25f5bb5"
+    },
+    "resources/app.asar.unpacked/src/_locales/en_GB/messages.json": {
+      "size": 12701,
+      "sha256": "faf17a32415db812f1e9338d8db3de1c64f4fd736cdbca1f551466ca5f61f85e"
+    },
+    "resources/app.asar.unpacked/src/_locales/en_IE/messages.json": {
+      "size": 12701,
+      "sha256": "faf17a32415db812f1e9338d8db3de1c64f4fd736cdbca1f551466ca5f61f85e"
+    },
+    "resources/app.asar.unpacked/src/_locales/en_IN/messages.json": {
+      "size": 12701,
+      "sha256": "faf17a32415db812f1e9338d8db3de1c64f4fd736cdbca1f551466ca5f61f85e"
+    },
+    "resources/app.asar.unpacked/src/_locales/en_NZ/messages.json": {
+      "size": 12701,
+      "sha256": "faf17a32415db812f1e9338d8db3de1c64f4fd736cdbca1f551466ca5f61f85e"
+    },
+    "resources/app.asar.unpacked/src/_locales/en_SG/messages.json": {
+      "size": 12701,
+      "sha256": "faf17a32415db812f1e9338d8db3de1c64f4fd736cdbca1f551466ca5f61f85e"
+    },
+    "resources/app.asar.unpacked/src/_locales/en_XA/messages.json": {
+      "size": 38807,
+      "sha256": "f8a8384f31fc7ce4f2442b70bac0ab22f2235eef48d2f351ce9487b2edee96db"
+    },
+    "resources/app.asar.unpacked/src/_locales/en_XC/messages.json": {
+      "size": 118079,
+      "sha256": "66fb8d298dce1aa4d8809bd8731d8e96a74f35df818486210daff27d1ad683b5"
+    },
+    "resources/app.asar.unpacked/src/_locales/en_ZA/messages.json": {
+      "size": 12701,
+      "sha256": "faf17a32415db812f1e9338d8db3de1c64f4fd736cdbca1f551466ca5f61f85e"
+    },
+    "resources/app.asar.unpacked/src/_locales/es/messages.json": {
+      "size": 14753,
+      "sha256": "583926d2a18269c090b1c03027f991db231c6af3dde0782303289c64376276ac"
+    },
+    "resources/app.asar.unpacked/src/_locales/es_419/messages.json": {
+      "size": 14961,
+      "sha256": "d7ccfe5fbdb064a621b01f2f2f80be9de4925c83dae17fb691b4b1b435809d0b"
+    },
+    "resources/app.asar.unpacked/src/_locales/es_AR/messages.json": {
+      "size": 14961,
+      "sha256": "d7ccfe5fbdb064a621b01f2f2f80be9de4925c83dae17fb691b4b1b435809d0b"
+    },
+    "resources/app.asar.unpacked/src/_locales/es_BO/messages.json": {
+      "size": 14961,
+      "sha256": "d7ccfe5fbdb064a621b01f2f2f80be9de4925c83dae17fb691b4b1b435809d0b"
+    },
+    "resources/app.asar.unpacked/src/_locales/es_CL/messages.json": {
+      "size": 14961,
+      "sha256": "d7ccfe5fbdb064a621b01f2f2f80be9de4925c83dae17fb691b4b1b435809d0b"
+    },
+    "resources/app.asar.unpacked/src/_locales/es_CO/messages.json": {
+      "size": 14961,
+      "sha256": "d7ccfe5fbdb064a621b01f2f2f80be9de4925c83dae17fb691b4b1b435809d0b"
+    },
+    "resources/app.asar.unpacked/src/_locales/es_CR/messages.json": {
+      "size": 14961,
+      "sha256": "d7ccfe5fbdb064a621b01f2f2f80be9de4925c83dae17fb691b4b1b435809d0b"
+    },
+    "resources/app.asar.unpacked/src/_locales/es_DO/messages.json": {
+      "size": 14961,
+      "sha256": "d7ccfe5fbdb064a621b01f2f2f80be9de4925c83dae17fb691b4b1b435809d0b"
+    },
+    "resources/app.asar.unpacked/src/_locales/es_EC/messages.json": {
+      "size": 14961,
+      "sha256": "d7ccfe5fbdb064a621b01f2f2f80be9de4925c83dae17fb691b4b1b435809d0b"
+    },
+    "resources/app.asar.unpacked/src/_locales/es_ES/messages.json": {
+      "size": 14753,
+      "sha256": "583926d2a18269c090b1c03027f991db231c6af3dde0782303289c64376276ac"
+    },
+    "resources/app.asar.unpacked/src/_locales/es_GT/messages.json": {
+      "size": 14961,
+      "sha256": "d7ccfe5fbdb064a621b01f2f2f80be9de4925c83dae17fb691b4b1b435809d0b"
+    },
+    "resources/app.asar.unpacked/src/_locales/es_HN/messages.json": {
+      "size": 14961,
+      "sha256": "d7ccfe5fbdb064a621b01f2f2f80be9de4925c83dae17fb691b4b1b435809d0b"
+    },
+    "resources/app.asar.unpacked/src/_locales/es_MX/messages.json": {
+      "size": 14961,
+      "sha256": "d7ccfe5fbdb064a621b01f2f2f80be9de4925c83dae17fb691b4b1b435809d0b"
+    },
+    "resources/app.asar.unpacked/src/_locales/es_NI/messages.json": {
+      "size": 14961,
+      "sha256": "d7ccfe5fbdb064a621b01f2f2f80be9de4925c83dae17fb691b4b1b435809d0b"
+    },
+    "resources/app.asar.unpacked/src/_locales/es_PA/messages.json": {
+      "size": 14961,
+      "sha256": "d7ccfe5fbdb064a621b01f2f2f80be9de4925c83dae17fb691b4b1b435809d0b"
+    },
+    "resources/app.asar.unpacked/src/_locales/es_PE/messages.json": {
+      "size": 14961,
+      "sha256": "d7ccfe5fbdb064a621b01f2f2f80be9de4925c83dae17fb691b4b1b435809d0b"
+    },
+    "resources/app.asar.unpacked/src/_locales/es_PR/messages.json": {
+      "size": 14961,
+      "sha256": "d7ccfe5fbdb064a621b01f2f2f80be9de4925c83dae17fb691b4b1b435809d0b"
+    },
+    "resources/app.asar.unpacked/src/_locales/es_PY/messages.json": {
+      "size": 14961,
+      "sha256": "d7ccfe5fbdb064a621b01f2f2f80be9de4925c83dae17fb691b4b1b435809d0b"
+    },
+    "resources/app.asar.unpacked/src/_locales/es_SV/messages.json": {
+      "size": 14961,
+      "sha256": "d7ccfe5fbdb064a621b01f2f2f80be9de4925c83dae17fb691b4b1b435809d0b"
+    },
+    "resources/app.asar.unpacked/src/_locales/es_US/messages.json": {
+      "size": 14961,
+      "sha256": "d7ccfe5fbdb064a621b01f2f2f80be9de4925c83dae17fb691b4b1b435809d0b"
+    },
+    "resources/app.asar.unpacked/src/_locales/es_UY/messages.json": {
+      "size": 14961,
+      "sha256": "d7ccfe5fbdb064a621b01f2f2f80be9de4925c83dae17fb691b4b1b435809d0b"
+    },
+    "resources/app.asar.unpacked/src/_locales/es_VE/messages.json": {
+      "size": 14961,
+      "sha256": "d7ccfe5fbdb064a621b01f2f2f80be9de4925c83dae17fb691b4b1b435809d0b"
+    },
+    "resources/app.asar.unpacked/src/_locales/et/messages.json": {
+      "size": 14511,
+      "sha256": "ef26cd9b51f5805c9c149b7aa9962142560e8abaae17eea50b0b60c502ce2739"
+    },
+    "resources/app.asar.unpacked/src/_locales/eu/messages.json": {
+      "size": 14155,
+      "sha256": "148744f5bfd3edbf103a52acae89f597d1910aa4535ba9c73e78c26a4c604786"
+    },
+    "resources/app.asar.unpacked/src/_locales/fa/messages.json": {
+      "size": 35183,
+      "sha256": "cb659137caa144f394b0a048c92cd9836cfdbb8f510fc21130a31b22eccb16ef"
+    },
+    "resources/app.asar.unpacked/src/_locales/fi/messages.json": {
+      "size": 15405,
+      "sha256": "cc95d335cc281f5b2ce8ff70eec5bbc24083e461a118193d39fb5428103ba4f4"
+    },
+    "resources/app.asar.unpacked/src/_locales/fil/messages.json": {
+      "size": 13962,
+      "sha256": "682baec5a15092c4786e2e89940b89614cecf29bfe46ca5abdd6b954534e67fd"
+    },
+    "resources/app.asar.unpacked/src/_locales/fr/messages.json": {
+      "size": 15347,
+      "sha256": "d6be6da3599191a25177d625d95dea7b68ee1e7d2f8cc33ae623e6ae4b94cb35"
+    },
+    "resources/app.asar.unpacked/src/_locales/fr_CA/messages.json": {
+      "size": 15742,
+      "sha256": "16e291777842a482751a7e70c045045f5ed23fa901fe383a19943320695f4116"
+    },
+    "resources/app.asar.unpacked/src/_locales/fr_CH/messages.json": {
+      "size": 15347,
+      "sha256": "d6be6da3599191a25177d625d95dea7b68ee1e7d2f8cc33ae623e6ae4b94cb35"
+    },
+    "resources/app.asar.unpacked/src/_locales/gl/messages.json": {
+      "size": 15138,
+      "sha256": "f35b14afed67ac20f076003c2e5b47abff63d7e154c621f42b17367342b98fad"
+    },
+    "resources/app.asar.unpacked/src/_locales/gsw/messages.json": {
+      "size": 14751,
+      "sha256": "84d09a67b8d1cf8ae2f5bbb02bc10df0c20d948dd9fa5ab17858e5cd3834807e"
+    },
+    "resources/app.asar.unpacked/src/_locales/gu/messages.json": {
+      "size": 35179,
+      "sha256": "ce8f738572b4f60acc1325fc3f43a08156bd075f65aab99c22c708c43a0798c0"
+    },
+    "resources/app.asar.unpacked/src/_locales/ha/messages.json": {
+      "size": 13468,
+      "sha256": "1e3e5eb151f6752a9812e6375af84eb4980e495d8fefa7f13950e61a8a4122e7"
+    },
+    "resources/app.asar.unpacked/src/_locales/he/messages.json": {
+      "size": 30448,
+      "sha256": "b6f2cfb99f6a6e3862f28fb8656c42e9e45e94b44c96525cc35182cc23436a9f"
+    },
+    "resources/app.asar.unpacked/src/_locales/hi/messages.json": {
+      "size": 35003,
+      "sha256": "cec3150cb7bdb2f87335d3e7f9e8f0549bcf833d277cf3734af972da78172afb"
+    },
+    "resources/app.asar.unpacked/src/_locales/hr/messages.json": {
+      "size": 14424,
+      "sha256": "9feb74f80a6fb739131d639c23893080f197ee6aa4c2055a2a8e7a885d7eb4a1"
+    },
+    "resources/app.asar.unpacked/src/_locales/hu/messages.json": {
+      "size": 17509,
+      "sha256": "7ec5b9d3da8dd91c9ce375638d7d0edf10b9a22d6a87a2c52f36f87064ddb6e2"
+    },
+    "resources/app.asar.unpacked/src/_locales/hy/messages.json": {
+      "size": 40904,
+      "sha256": "769bc5c43230b743b194499cbde1e10d20cfd6adc87f8c5085e558fed85ec38d"
+    },
+    "resources/app.asar.unpacked/src/_locales/id/messages.json": {
+      "size": 13059,
+      "sha256": "da4320df91d62d9243910ef7f9b2424da673386d7356d4c998199689fa017dba"
+    },
+    "resources/app.asar.unpacked/src/_locales/ig/messages.json": {
+      "size": 14888,
+      "sha256": "8740e7108a0024c27850118008622b9d6faa622b2c667539dc3709b726a6c4f2"
+    },
+    "resources/app.asar.unpacked/src/_locales/in/messages.json": {
+      "size": 13059,
+      "sha256": "da4320df91d62d9243910ef7f9b2424da673386d7356d4c998199689fa017dba"
+    },
+    "resources/app.asar.unpacked/src/_locales/is/messages.json": {
+      "size": 15733,
+      "sha256": "0ac707bb7e85c9a696a9cc81891a01034f86ef240dbeedb4755e160d9af2ef54"
+    },
+    "resources/app.asar.unpacked/src/_locales/it/messages.json": {
+      "size": 14197,
+      "sha256": "68849856f2da69c6525a03718782200a848a3d5b7cecfc5b2fe30cde5431ef45"
+    },
+    "resources/app.asar.unpacked/src/_locales/iw/messages.json": {
+      "size": 30448,
+      "sha256": "b6f2cfb99f6a6e3862f28fb8656c42e9e45e94b44c96525cc35182cc23436a9f"
+    },
+    "resources/app.asar.unpacked/src/_locales/ja/messages.json": {
+      "size": 24179,
+      "sha256": "6b2a2a4e646fb86eb8dd4569eeb781623dc78062e0b1a92136419307bd37d410"
+    },
+    "resources/app.asar.unpacked/src/_locales/ka/messages.json": {
+      "size": 37689,
+      "sha256": "56c70035e09998e70f893c5fe22e0ccfc2dfada178e0535d57ab38ce3400fe2b"
+    },
+    "resources/app.asar.unpacked/src/_locales/kk/messages.json": {
+      "size": 38996,
+      "sha256": "5afc068058ed01a4f3ee355127a84b7fae0d4df67ffb236873b256c70632170f"
+    },
+    "resources/app.asar.unpacked/src/_locales/km/messages.json": {
+      "size": 37764,
+      "sha256": "fb642b55d6c527176e6a95408cd9296ff1d02ceff56e0869dbe4a019b6656069"
+    },
+    "resources/app.asar.unpacked/src/_locales/kn/messages.json": {
+      "size": 41490,
+      "sha256": "dd13a949a938034c5baf92aa85fa4e5fc1cb8ff9464e62b8f51cd9bc364ad17f"
+    },
+    "resources/app.asar.unpacked/src/_locales/ko/messages.json": {
+      "size": 20514,
+      "sha256": "1e5b8efefa22a855f2cf3fdaa2e48364d252ab17b78f0936719d01d9ec51dc1e"
+    },
+    "resources/app.asar.unpacked/src/_locales/ky/messages.json": {
+      "size": 39406,
+      "sha256": "636f4dc8abfc4ca580898a09c3d17ba21c1398fea023ab1aca211ab25d28f52e"
+    },
+    "resources/app.asar.unpacked/src/_locales/ln/messages.json": {
+      "size": 15347,
+      "sha256": "d6be6da3599191a25177d625d95dea7b68ee1e7d2f8cc33ae623e6ae4b94cb35"
+    },
+    "resources/app.asar.unpacked/src/_locales/lo/messages.json": {
+      "size": 34204,
+      "sha256": "041b51c6fa1999bbb8ed463e96781206c3d513d0f10d3533bd740f8c1043a9c5"
+    },
+    "resources/app.asar.unpacked/src/_locales/lt/messages.json": {
+      "size": 16237,
+      "sha256": "7082e7a75db324f253b37c7475b2faa84f51696459faa1e141fea54bba30f263"
+    },
+    "resources/app.asar.unpacked/src/_locales/lv/messages.json": {
+      "size": 17271,
+      "sha256": "34a7b0885bd9d8150be2dc9fbee82e86c19f56f0844a401aa2a7421d6b2e3a7c"
+    },
+    "resources/app.asar.unpacked/src/_locales/ml/messages.json": {
+      "size": 43029,
+      "sha256": "586b77c958a3ae7865b6c249344240640fbc6082c90459ea7d50a085037718f4"
+    },
+    "resources/app.asar.unpacked/src/_locales/mn/messages.json": {
+      "size": 37711,
+      "sha256": "44dc55579b84b4086729135291caf85e22cddfdfc8482ff38fe6ed507d781ceb"
+    },
+    "resources/app.asar.unpacked/src/_locales/mo/messages.json": {
+      "size": 15521,
+      "sha256": "20c9e4764da7e626ef7c32253ed675dfeb7cf449bb74464ef76cf68aabbee055"
+    },
+    "resources/app.asar.unpacked/src/_locales/mr/messages.json": {
+      "size": 34857,
+      "sha256": "25f1404ed500be6e1d905f060c0372cc3328bfdc58399cd489f7e2d36cc5cb10"
+    },
+    "resources/app.asar.unpacked/src/_locales/ms/messages.json": {
+      "size": 13450,
+      "sha256": "228e746288ec4afcc3053837f9ea3280ee4088e54820989b146e24d9069123b9"
+    },
+    "resources/app.asar.unpacked/src/_locales/my/messages.json": {
+      "size": 40676,
+      "sha256": "727881758bf6303fc13e53e6863c9280e9ea7bfa27256ed73853750fe1051c1f"
+    },
+    "resources/app.asar.unpacked/src/_locales/nb/messages.json": {
+      "size": 13915,
+      "sha256": "5f5e3c0d4177d844f7ad6459bc7c890d568468475e7edd700bdc43e52e6608d9"
+    },
+    "resources/app.asar.unpacked/src/_locales/ne/messages.json": {
+      "size": 39274,
+      "sha256": "457c01d3bbcbf468aa649c2d8cbb0649b8bf8b8c06121f742ef3b769dc50b60d"
+    },
+    "resources/app.asar.unpacked/src/_locales/nl/messages.json": {
+      "size": 13368,
+      "sha256": "c93a585bc027da90f5f12085250bc172bf0f5574b061fdf938f6c27a45b7aacf"
+    },
+    "resources/app.asar.unpacked/src/_locales/no/messages.json": {
+      "size": 13915,
+      "sha256": "5f5e3c0d4177d844f7ad6459bc7c890d568468475e7edd700bdc43e52e6608d9"
+    },
+    "resources/app.asar.unpacked/src/_locales/om/messages.json": {
+      "size": 14330,
+      "sha256": "48c0ed018011c4d925367cce2ebd0c4b599a464f0dede27986aa009462d5aabd"
+    },
+    "resources/app.asar.unpacked/src/_locales/or/messages.json": {
+      "size": 37821,
+      "sha256": "a00e48575cd33b9c5a999600fc2a3ec714e4bf427017d90ded454cb300294223"
+    },
+    "resources/app.asar.unpacked/src/_locales/or_IN/messages.json": {
+      "size": 37821,
+      "sha256": "a00e48575cd33b9c5a999600fc2a3ec714e4bf427017d90ded454cb300294223"
+    },
+    "resources/app.asar.unpacked/src/_locales/pa/messages.json": {
+      "size": 35157,
+      "sha256": "cde4d282168035e5ae992d2e2246e16d3ed680470744a7f1fba4f7615a9228c6"
+    },
+    "resources/app.asar.unpacked/src/_locales/pa_IN/messages.json": {
+      "size": 35157,
+      "sha256": "cde4d282168035e5ae992d2e2246e16d3ed680470744a7f1fba4f7615a9228c6"
+    },
+    "resources/app.asar.unpacked/src/_locales/pl/messages.json": {
+      "size": 15866,
+      "sha256": "786a008c3d585456ed9c7790a3e184af8fbfe8ccd30b2760804af3bce3768a99"
+    },
+    "resources/app.asar.unpacked/src/_locales/pt/messages.json": {
+      "size": 14852,
+      "sha256": "4e8dbf9534f8d8158d683bdab85c9f7f929e1109836d93db1ce8e7a110fe9bad"
+    },
+    "resources/app.asar.unpacked/src/_locales/pt_BR/messages.json": {
+      "size": 14852,
+      "sha256": "4e8dbf9534f8d8158d683bdab85c9f7f929e1109836d93db1ce8e7a110fe9bad"
+    },
+    "resources/app.asar.unpacked/src/_locales/pt_PT/messages.json": {
+      "size": 15366,
+      "sha256": "cf170cdedacb872eadefd48d81311a661fe7a605619167bd7af7d239b9cdaf67"
+    },
+    "resources/app.asar.unpacked/src/_locales/ro/messages.json": {
+      "size": 15521,
+      "sha256": "20c9e4764da7e626ef7c32253ed675dfeb7cf449bb74464ef76cf68aabbee055"
+    },
+    "resources/app.asar.unpacked/src/_locales/ru/messages.json": {
+      "size": 37641,
+      "sha256": "52fadc055b1ddc82250baa3047c520d453c9a2106c1d684e860181fa7abed3c8"
+    },
+    "resources/app.asar.unpacked/src/_locales/si/messages.json": {
+      "size": 36058,
+      "sha256": "02cdc3f62b154a0c275708cdc025db362f49c96757518a28b2cbb24e43ae8c25"
+    },
+    "resources/app.asar.unpacked/src/_locales/sk/messages.json": {
+      "size": 16578,
+      "sha256": "344e0c86126f25a999ec0eaceceddbf9b7fd56bed1138a7142656d439aa06325"
+    },
+    "resources/app.asar.unpacked/src/_locales/sl/messages.json": {
+      "size": 14529,
+      "sha256": "438c96b072e332f06b2c99cb9d76f00441b2531b0442de898a563aef132de925"
+    },
+    "resources/app.asar.unpacked/src/_locales/sq/messages.json": {
+      "size": 15622,
+      "sha256": "98756f6060da297c2e732b5191c6c00ed83f8bb99269894bb7c567995a990efb"
+    },
+    "resources/app.asar.unpacked/src/_locales/sr/messages.json": {
+      "size": 36641,
+      "sha256": "bdbf20d66b0c9403ea88e8f1adc37e878c778e3b629b249aa5af3f86b45a3373"
+    },
+    "resources/app.asar.unpacked/src/_locales/sr_Latn/messages.json": {
+      "size": 14451,
+      "sha256": "6ec8390da995a9d733798f0327aee74b9d55f872f438a0421781a1408b76eb05"
+    },
+    "resources/app.asar.unpacked/src/_locales/sv/messages.json": {
+      "size": 14488,
+      "sha256": "088491e56d76bb347e1bcddc975b36f1015989833ed0a6071be13a25bfe4e67a"
+    },
+    "resources/app.asar.unpacked/src/_locales/sw/messages.json": {
+      "size": 13834,
+      "sha256": "54daa28c49527e73c62527399728f62fd736443863ee299e350fec72c274752b"
+    },
+    "resources/app.asar.unpacked/src/_locales/ta/messages.json": {
+      "size": 40623,
+      "sha256": "109500911d152a63196c2ee2f0222c4acb98e114de03670b1106a88016d091d2"
+    },
+    "resources/app.asar.unpacked/src/_locales/te/messages.json": {
+      "size": 40129,
+      "sha256": "ae8509f41271d10ee25e6050f0cfdbd761ddf2ed110013495c57a8e237e265b4"
+    },
+    "resources/app.asar.unpacked/src/_locales/th/messages.json": {
+      "size": 33455,
+      "sha256": "28d202dbcdaeb7677c55d6a9bee1d5ef098c89527c00c067ab4c7ea8f7de8dbe"
+    },
+    "resources/app.asar.unpacked/src/_locales/tl/messages.json": {
+      "size": 13962,
+      "sha256": "682baec5a15092c4786e2e89940b89614cecf29bfe46ca5abdd6b954534e67fd"
+    },
+    "resources/app.asar.unpacked/src/_locales/tr/messages.json": {
+      "size": 16207,
+      "sha256": "90155374d2999024b158b416c570271937791c281302922bdade18d45c3dc591"
+    },
+    "resources/app.asar.unpacked/src/_locales/uk/messages.json": {
+      "size": 37262,
+      "sha256": "966d41a5afb729df1d868cb30a4bb98e158ca94dc400d6c920579cbdfa891805"
+    },
+    "resources/app.asar.unpacked/src/_locales/ur/messages.json": {
+      "size": 34903,
+      "sha256": "4c99029a3e132de265bde1bc3eea6f994822b7a862efd6189f47699e9f178289"
+    },
+    "resources/app.asar.unpacked/src/_locales/uz/messages.json": {
+      "size": 14345,
+      "sha256": "3c6db7d44907233686852cc06d22942432503dee89bf8ee2440cde0fe3ae143c"
+    },
+    "resources/app.asar.unpacked/src/_locales/vi/messages.json": {
+      "size": 19938,
+      "sha256": "a3524409408d243b372c7ea0f711572cb6cde8ed3df2eb46659cd1808c554cd9"
+    },
+    "resources/app.asar.unpacked/src/_locales/yo/messages.json": {
+      "size": 23680,
+      "sha256": "8248b2d31f4bf32a18b813d4462e1fd41c338d2b0ae8033a89b4e68fe3caa782"
+    },
+    "resources/app.asar.unpacked/src/_locales/zh/messages.json": {
+      "size": 17274,
+      "sha256": "a1fd76123cb14016293ff423c518b93c1d73640acfcd8ccb562d89f9c699f354"
+    },
+    "resources/app.asar.unpacked/src/_locales/zh_CN/messages.json": {
+      "size": 17274,
+      "sha256": "a1fd76123cb14016293ff423c518b93c1d73640acfcd8ccb562d89f9c699f354"
+    },
+    "resources/app.asar.unpacked/src/_locales/zh_HK/messages.json": {
+      "size": 17313,
+      "sha256": "6e1d8ab13a82ddbcfaa187c6afeb3431ba32cc221302ad5504fa375828189b91"
+    },
+    "resources/app.asar.unpacked/src/_locales/zh_TW/messages.json": {
+      "size": 17586,
+      "sha256": "8840b4b695195fd84d1d744aee1810d71cc4d67aebf0cc483a3f766b1d32d3ef"
+    },
+    "resources/app.asar.unpacked/src/_locales/zu/messages.json": {
+      "size": 13870,
+      "sha256": "86df0919e16c2b990029ce6565acfd2d73add333aaff4b9842ff96d22c3d924c"
+    }
+  },
+  "preload": {
+    "path": "src/preload.js",
+    "size": 1621,
+    "sha256": "8a733a4222db9a87667594e1bce6202eef09d4b808b038336d5c2132a0102d56"
+  }
+}
