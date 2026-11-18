@@ -5,8 +5,8 @@ const path=require('node:path');
 const os=require('node:os');
 const state=fs.mkdtempSync(path.join(os.tmpdir(),'gemini-worker-events-'));
 process.env.GEMINI_WORK_STATE=state;
-const store=require('../store.cjs');
-const {runWorker,unsentProof}=require('../worker.cjs');
+const store=require('../src/store.cjs');
+const {runWorker,unsentProof}=require('../src/worker.cjs');
 
 function clean(db){
  db.exec('DELETE FROM tasks; DELETE FROM runtime;');

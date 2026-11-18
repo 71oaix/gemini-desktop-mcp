@@ -13,7 +13,7 @@ const legacyRequest=id=>JSON.stringify({id,prompt:'old web',model:'flash',purpos
 legacy.prepare('INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?,?)').run('legacy-queued','h1',legacyRequest('legacy-queued'),'queued',1,1,null,null,null);
 legacy.prepare('INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?,?)').run('legacy-completed','h2',legacyRequest('legacy-completed'),'completed',1,1,JSON.stringify({answer:'old',url:'https://gemini.google.com/app/old'}),null,null);
 legacy.close();
-const s=require('../store.cjs');
+const s=require('../src/store.cjs');
 function file(name,content='hello'){const filename=path.join(state,name);fs.writeFileSync(filename,content);return filename;}
 function cleanQueue(db,except=[]){const marks=except.map(()=>'?').join(',');const sql=marks?`UPDATE tasks SET status='failed',next_op=NULL,next_attempt=NULL WHERE status IN ('queued','staging','connecting','retry_wait','uncertain') AND id NOT IN (${marks})`:`UPDATE tasks SET status='failed',next_op=NULL,next_attempt=NULL WHERE status IN ('queued','staging','connecting','retry_wait','uncertain')`;db.prepare(sql).run(...except);}
 

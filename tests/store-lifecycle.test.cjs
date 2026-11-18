@@ -6,7 +6,7 @@ const path=require('node:path');
 
 const stateDir=fs.mkdtempSync(path.join(os.tmpdir(),'gemini-lifecycle-'));
 process.env.GEMINI_WORK_STATE=stateDir;
-const store=require('../store.cjs');
+const store=require('../src/store.cjs');
 
 function writeLedger(taskId,payload){
  const dir=path.join(stateDir,'bridge-tasks');

@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 process.env.GEMINI_WORK_STATE=fs.mkdtempSync(path.join(os.tmpdir(),'gemini-queue-events-'));
-const store=require('../store.cjs'),events=require('../queue-events.cjs');
+const store=require('../src/store.cjs'),events=require('../src/queue-events.cjs');
 test('answer revisions and replay cursor commit together, duplicate and gapped events do not apply',t=>{
  const db=store.open();t.after(()=>db.close());
  store.submit(db,{task_id:'event-task',prompt:'hello'});

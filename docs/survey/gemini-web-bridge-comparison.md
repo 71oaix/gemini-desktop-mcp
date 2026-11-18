@@ -103,4 +103,4 @@ Chrome 扩展后台 service worker 可能被终止，需要处理持久化与恢
 
 外部文件路径见各节，固定提交链接见来源表。外部仓库只按固定提交只读核对，不随本项目分发快照或原始文件。
 
-本项目对照：[工具和健康信息](../../server.cjs)、[页面绑定与恢复](../../desktop-bridge.cjs)、[完成状态机](../../desktop-machine.cjs)、[事件补报](../../desktop-events.cjs)、[队列](../../store.cjs)、[当前验证范围](../../ACCEPTANCE.md)。机制存在不替代真实异常恢复验收。
+本项目对照：[工具和健康信息](../../src/server.cjs)、[页面绑定与恢复](../../src/desktop-bridge.cjs)、[完成状态机](../../src/desktop-machine.cjs)、[事件补报](../../src/desktop-events.cjs)、[队列](../../src/store.cjs)、[当前验证范围](../../ACCEPTANCE.md)。机制存在不替代真实异常恢复验收。

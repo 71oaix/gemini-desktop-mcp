@@ -2,7 +2,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const {EventEmitter}=require('node:events');
-const observation=require('../desktop-observation.cjs');
+const observation=require('../src/desktop-observation.cjs');
 
 function pageState(over={}){
  return {

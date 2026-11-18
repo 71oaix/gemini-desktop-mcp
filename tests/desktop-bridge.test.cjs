@@ -9,9 +9,9 @@ const crypto=require('node:crypto');
 const vm=require('node:vm');
 const Module=require('node:module');
 const {EventEmitter}=require('node:events');
-const observation=require('../desktop-observation.cjs');
-const page=require('../desktop-page.cjs');
-const bridge=require('../desktop-bridge.cjs');
+const observation=require('../src/desktop-observation.cjs');
+const page=require('../src/desktop-page.cjs');
+const bridge=require('../src/desktop-bridge.cjs');
 
 function sha256(value){return crypto.createHash('sha256').update(value).digest('hex');}
 function marker(id){return `[gemini-work:${id}:abcd1234]`;}
@@ -1625,7 +1625,7 @@ function preloadFixture(t){
 // The production factory is loaded through a VM module wrapper so require('electron')
 // can resolve to this fake without adding a test-only injection point to the bridge.
 function productionFactoryWithElectron(electron){
- const filename=path.join(__dirname,'..','desktop-bridge.cjs');
+ const filename=path.join(__dirname,'..','src','desktop-bridge.cjs');
  const source=fs.readFileSync(filename,'utf8');
  const baseRequire=Module.createRequire(filename);
  const requireForBridge=id=>id==='electron'?electron:baseRequire(id);

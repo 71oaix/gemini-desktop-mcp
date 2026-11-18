@@ -5,8 +5,8 @@ const path=require('node:path');
 const os=require('node:os');
 const state=fs.mkdtempSync(path.join(os.tmpdir(),'gemini-supervisor-test-'));
 process.env.GEMINI_WORK_STATE=state;
-const s=require('../store.cjs');
-const {Supervisor}=require('../supervisor.cjs');
+const s=require('../src/store.cjs');
+const {Supervisor}=require('../src/supervisor.cjs');
 
 function fakeChild(pid){
  return {pid,exitCode:1,kill(){this.killed=(this.killed||0)+1;this.exitCode=143;},removeListener(){},once(){}};

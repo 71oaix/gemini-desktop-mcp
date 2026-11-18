@@ -9,9 +9,9 @@ const path=require('node:path');
 
 const stateDir=fs.mkdtempSync(path.join(os.tmpdir(),'gemini-mcp-fallback-'));
 process.env.GEMINI_WORK_STATE=stateDir;
-const store=require('../store.cjs');
-const worker=require('../worker.cjs');
-const policy=require('../desktop-model-policy.cjs');
+const store=require('../src/store.cjs');
+const worker=require('../src/worker.cjs');
+const policy=require('../src/desktop-model-policy.cjs');
 
 let db=null;
 let sequence=0;

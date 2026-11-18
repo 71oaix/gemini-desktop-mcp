@@ -5,8 +5,8 @@ class Transport{
  constructor(){this.sequence=0;this.pending=new Map();this.child=null;}
  async start(){
   if(this.child)return;
-  const cli=path.join(__dirname,'node_modules/@playwright/mcp/cli.js');
-  this.child=spawn(process.execPath,[cli,'--extension','--browser','chrome','--profile-dir-name',process.env.GEMINI_CHROME_PROFILE||'Default','--no-webmcp','--timeout-action','10000','--output-dir',path.join(__dirname,'state/browser-evidence')],{cwd:__dirname,windowsHide:true,stdio:['pipe','pipe','pipe']});
+  const cli=path.join(__dirname,'..','node_modules/@playwright/mcp/cli.js');
+  this.child=spawn(process.execPath,[cli,'--extension','--browser','chrome','--profile-dir-name',process.env.GEMINI_CHROME_PROFILE||'Default','--no-webmcp','--timeout-action','10000','--output-dir',path.join(__dirname,'..','state/browser-evidence')],{cwd:__dirname,windowsHide:true,stdio:['pipe','pipe','pipe']});
   this.child.stderr.on('data',()=>{});
   const connection=this.child;
   const fail=error=>{if(this.child!==connection)return;for(const p of this.pending.values()){clearTimeout(p.timer);p.reject(error);}this.pending.clear();this.child=null;};

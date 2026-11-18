@@ -1,6 +1,6 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {pageFault,retryNetwork,networkError}=require('../browser.cjs');
+const {pageFault,retryNetwork,networkError}=require('../src/browser.cjs');
 test('region restrictions pause instead of retrying or switching access routes',async()=>{
  for(const pageText of ['Gemini 尚不支持你所在的国家或地区','Gemini is not currently supported in your country','Gemini isn’t available in your country'])assert.match(pageFault({pageText}),/^REGION_UNSUPPORTED/);
  let attempts=0;await assert.rejects(()=>retryNetwork(async()=>{attempts++;throw Error('REGION_UNSUPPORTED: 请用户恢复连接');},async()=>{assert.fail('region restriction must not be retried');},{sleep:async()=>{}}),/REGION_UNSUPPORTED/);

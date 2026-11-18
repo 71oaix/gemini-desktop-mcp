@@ -26,7 +26,7 @@ async function assertTab(t){
  const current=new URL(url);
  if(current.origin!=='https://gemini.google.com')throw Error(`授权页面已离开 Gemini：${current.origin}${current.pathname}；需要用户恢复连接`);
  const diagnostic=parse(await t.call('browser_evaluate',{function:`() => ({url:location.origin+location.pathname,hidden:document.hidden,visibility:document.visibilityState,width:innerWidth,height:innerHeight,online:navigator.onLine,mode:document.querySelector('[data-test-id="bard-mode-menu-button"]')?.outerHTML,menus:Array.from(document.querySelectorAll('[role=menuitem],[role=menuitemcheckbox],[role=menuitemradio],[role=option],button[data-test-id]')).map(e=>({text:e.innerText,id:e.getAttribute('data-test-id')})),uploads:Array.from(document.querySelectorAll('uploader-file-preview')).map(e=>e.outerHTML.slice(0,12000)),input:Array.from(document.querySelectorAll('input[type=file]')).map(e=>({accept:e.accept,files:Array.from(e.files||[]).map(f=>({name:f.name,size:f.size,type:f.type}))}))})` }));
- await fs.writeFile(path.join(process.env.GEMINI_WORK_STATE||path.join(__dirname,'state'),'page-diagnostic.json'),JSON.stringify(diagnostic,null,2));
+ await fs.writeFile(path.join(process.env.GEMINI_WORK_STATE||path.join(__dirname,'..','state'),'page-diagnostic.json'),JSON.stringify(diagnostic,null,2));
  if(diagnostic.hidden){const selected=Number(line?.match(/^- (\d+):/)?.[1]);if(Number.isInteger(selected))await t.call('browser_tabs',{action:'select',index:selected});}
  // Gemini can redirect to its landing page during a region/network failure.
  // Read the page diagnosis before deciding whether chat navigation is allowed.

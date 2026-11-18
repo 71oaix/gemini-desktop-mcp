@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const {SSEParser}=require('../desktop-stream.cjs');
+const {SSEParser}=require('../src/desktop-stream.cjs');
 test('SSE preserves unicode across arbitrary byte boundaries and CRLF frames',()=>{
  const events=[],parser=new SSEParser(e=>events.push(e));
  const bytes=Buffer.from('id: instance:7\r\nevent: task\r\ndata: {"answer":"中文🙂"}\r\n\r\n');
@@ -11,7 +11,7 @@ test('SSE rejects unlimited incomplete frames and malformed JSON',()=>{
  assert.throws(()=>new SSEParser(()=>{}).push(Buffer.from('data: broken\n\n')),SyntaxError);
 });
 test('event transport authenticates, resumes a cursor and serializes asynchronous consumers',async t=>{
- const http=require('node:http');const {openEventStream}=require('../desktop-stream.cjs');
+ const http=require('node:http');const {openEventStream}=require('../src/desktop-stream.cjs');
  const server=http.createServer((req,res)=>{
   assert.equal(req.url,'/events');assert.equal(req.headers.authorization,'Bearer secret-fixture');
   assert.equal(req.headers['last-event-id'],'epoch:4');assert.equal(req.headers.origin,undefined);
@@ -29,7 +29,7 @@ test('event transport authenticates, resumes a cursor and serializes asynchronou
  assert.deepEqual(seen,Array.from({length:100},(_,i)=>['start'+(i+5),'end'+(i+5)]).flat());
 });
 test('large retained replay drains progressively instead of disconnecting a healthy consumer',async t=>{
- const http=require('node:http'),{EventJournal}=require('../desktop-events.cjs'),{openEventStream}=require('../desktop-stream.cjs');
+ const http=require('node:http'),{EventJournal}=require('../src/desktop-events.cjs'),{openEventStream}=require('../src/desktop-stream.cjs');
  const journal=new EventJournal({instanceId:'large-replay'});
  for(let i=0;i<6;i++)journal.append('answer',{answer:'x'.repeat(1024*1024)});
  const server=http.createServer((_req,res)=>{res.writeHead(200,{'content-type':'text/event-stream'});res.flushHeaders();journal.subscribe(res,{instance_id:'large-replay',seq:0});});

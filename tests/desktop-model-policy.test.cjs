@@ -1,9 +1,9 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const policy=require('../desktop-model-policy.cjs');
-const bridge=require('../desktop-bridge.cjs');
-const worker=require('../worker.cjs');
+const policy=require('../src/desktop-model-policy.cjs');
+const bridge=require('../src/desktop-bridge.cjs');
+const worker=require('../src/worker.cjs');
 
 function menu(over=[]){
  return [

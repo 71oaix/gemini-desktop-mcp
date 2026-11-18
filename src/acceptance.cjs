@@ -13,7 +13,7 @@ const PAGE_CHARS=700;
 const MAX_WAIT_ROUNDS=12;
 const MAX_PAGES=400;
 const EXPECTED_TASKS=10;
-const STATE_ROOT=path.join(__dirname,'state');
+const STATE_ROOT=path.join(__dirname,'..','state');
 
 let RUN='';
 let TOKEN='';

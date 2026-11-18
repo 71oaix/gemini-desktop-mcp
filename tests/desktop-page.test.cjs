@@ -2,7 +2,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const vm=require('node:vm');
-const page=require('../desktop-page.cjs');
+const page=require('../src/desktop-page.cjs');
 
 function state(over={}){
  return {
@@ -246,14 +246,14 @@ test('real Quill paragraph structure preserves single newlines, empty paragraphs
  const input={innerText:parts.join('\n\n')+'\n',textContent:parts.join(''),children:blocks,childNodes:blocks,tagName:'DIV',className:'ql-editor'};
  const document={querySelector:q=>q==='[contenteditable="true"][role="textbox"]'?input:null,querySelectorAll:()=>[],body:{innerText:''},title:'Gemini'};
  const context={document,location:{protocol:'https:',hostname:'gemini.google.com',origin:'https://gemini.google.com',href:'https://gemini.google.com/app'},navigator:{onLine:true},innerWidth:1000,innerHeight:800};
- const state=await require('../desktop-page.cjs').observe({executeJavaScript:code=>vm.runInNewContext(code,context)});
- assert.equal(state.draft,parts.join('\n'));assert.equal(require('../desktop-page.cjs').draftHash(state.draft),require('../desktop-page.cjs').draftHash(parts.join('\n')));
+ const state=await require('../src/desktop-page.cjs').observe({executeJavaScript:code=>vm.runInNewContext(code,context)});
+ assert.equal(state.draft,parts.join('\n'));assert.equal(require('../src/desktop-page.cjs').draftHash(state.draft),require('../src/desktop-page.cjs').draftHash(parts.join('\n')));
 });
 
-test('TXT cards match complete name lines without extension and reject substrings',()=>{assert.equal(require('../desktop-page.cjs').attachmentShown('TXT\nfixture','fixture.txt'),true);assert.equal(require('../desktop-page.cjs').attachmentShown('TXT\nother-fixture','fixture.txt'),false);});
+test('TXT cards match complete name lines without extension and reject substrings',()=>{assert.equal(require('../src/desktop-page.cjs').attachmentShown('TXT\nfixture','fixture.txt'),true);assert.equal(require('../src/desktop-page.cjs').attachmentShown('TXT\nother-fixture','fixture.txt'),false);});
 
 test('TXT cards match ellipsis and long prefixes but still reject unrelated substrings',()=>{
- const shown=require('../desktop-page.cjs').attachmentShown;
+ const shown=require('../src/desktop-page.cjs').attachmentShown;
  assert.equal(shown('TXT\n第03章-PyTor...与可视化工具（样板）','第03章-PyTorch深度神经网络及训练与可视化工具（样板）.txt'),true);
  assert.equal(shown('TXT\n第12章-视觉Tra...rmer模型（样板）','第12章-视觉Transformer模型（样板）.txt'),true);
  assert.equal(shown('TXT\n第03章-PyTorch深度神经网络及训练与','第03章-PyTorch深度神经网络及训练与可视化工具（样板）.txt'),true);
@@ -295,7 +295,7 @@ test('model menu collection keeps Hydrogen, Flash-Lite, 3.1 Pro and Carbon along
   },
   body:{innerText:''},title:'Gemini',visibilityState:'visible'
  };
- const state=await require('../desktop-page.cjs').observe({executeJavaScript:code=>vm.runInNewContext(code,{document,location:{protocol:'https:',hostname:'gemini.google.com',origin:'https://gemini.google.com',href:'https://gemini.google.com/app'},navigator:{onLine:true},innerWidth:1000,innerHeight:800})});
+ const state=await require('../src/desktop-page.cjs').observe({executeJavaScript:code=>vm.runInNewContext(code,{document,location:{protocol:'https:',hostname:'gemini.google.com',origin:'https://gemini.google.com',href:'https://gemini.google.com/app'},navigator:{onLine:true},innerWidth:1000,innerHeight:800})});
  const texts=state.models.map(item=>item.text);
  assert.ok(texts.some(text=>/Hydrogen/i.test(text)),texts.join('|'));
  assert.ok(texts.some(text=>/Argon/i.test(text)),texts.join('|'));

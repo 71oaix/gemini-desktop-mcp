@@ -6,11 +6,20 @@
 
 ## 文档职责
 
-- `README.md` 维护面向使用者的安装、MCP 配置、用法、隐私和支持范围。
+- `README.md` 维护面向使用者的一键/手动安装、MCP 配置、用法、打包、隐私和支持范围。
 - `ACCEPTANCE.md` 维护已实测结论、使用限制和未完成验证。
 - `docs/intention/` 维护服务范围和已决定策略；`docs/specification/` 维护稳定契约；`docs/survey/` 维护页面事实、源码机制和设计证据。
 - 文档只保留当前有效内容。过时规则、旧批次和失效结论直接清理，不迁入 archive；有效约束和未完成验证必须保留，不能因清理而宣称已验收。
 - 修改行为时同步更新对应文档。源码存在、离线测试通过和模拟反例都不能替代真实收发、网络恢复或回滚验收。
+
+## 目录与安装入口
+
+- 运行实现统一放在 `src/`。根目录 `server.cjs`、`client.cjs`、`desktop-patch.cjs` 只是兼容旧命令和旧 MCP 配置的入口，不把业务逻辑搬回根目录。
+- `state/` 是本机运行、staging 和备份根。补丁 `build` 的 staging 必须位于 `state/` 内，且 state 不能位于 Gemini 安装目录内；补丁只替换安装目录的 `resources/app.asar`，不得改写基线以外的 unpacked 文件或原厂布局。
+- `Install.cmd`/`scripts/install.ps1` 只支持默认目录 `%LOCALAPPDATA%\Google\Gemini\app-1.16.0`，不自动查找其他版本或目录；其他目录使用 README 的手动命令。
+- 安装器在改动客户端前检查进程；未知状态、只读补丁、基线不符或任一子步骤失败必须停止，不自动升级或回滚，也不强制结束进程。已有补丁重跑时核对校验值、可写状态和状态目录。Codex 注册前须验证页面就绪及原生挂钩。`-SkipCodex` 跳过启动客户端和写入配置。
+- `activate.ps1 -AddIfMissing` 只在缺失时追加 `[mcp_servers.gemini]`；已有节指向其他安装目录、布局嵌套/重复或无法确认时停止，不静默改写。其他配置节保持不变。
+- `scripts/package-windows.ps1` 只打包显式白名单；先写临时 ZIP，完整后再原子替换，失败保留旧包。不得包含 `node_modules/`、`state/`、`dist/`、Gemini 客户端或其安装包、凭据和上游二进制资产。
 
 ## 安全与正确性约束
 
@@ -36,4 +45,4 @@ npm ci
 npm test
 ```
 
-离线测试不能替代真实提交、后台启停、断线恢复和补丁回滚；宣称这些能力已验收必须有对应的实测记录。
+离线测试不能替代真实提交、后台启停、断线恢复和补丁回滚；宣称这些能力已验收必须有对应的实测记录。`scripts/package-windows.ps1` 生成的 ZIP 包含 `tests/`，但打包成功或在解压目录通过测试也不等于一键安装的实机验收。
