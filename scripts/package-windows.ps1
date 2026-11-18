@@ -54,6 +54,8 @@ $files = @(
     'src/worker.cjs',
     'docs/intention/task-service-intention.md',
     'docs/specification/capabilities-and-activity.md',
+    'docs/usage/installation.md',
+    'docs/usage/asking-gemini.md',
     'docs/survey/gemini-web-bridge-comparison.md',
     'docs/survey/task-service-design-evidence.md',
     'tests/desktop-bridge.test.cjs',
