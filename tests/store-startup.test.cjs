@@ -6,7 +6,7 @@ const path=require('node:path');
 const {spawn}=require('node:child_process');
 const {DatabaseSync}=require('node:sqlite');
 
-const STORE=path.resolve(__dirname,'..','store.cjs');
+const STORE=path.resolve(__dirname,'..','src','store.cjs');
 const stateDir=fs.mkdtempSync(path.join(os.tmpdir(),'gemini-store-startup-'));
 process.env.GEMINI_WORK_STATE=stateDir;
 const store=require(STORE);

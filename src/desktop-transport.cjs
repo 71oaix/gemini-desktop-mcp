@@ -18,7 +18,7 @@ const CAPABILITY_LIMITS=Object.freeze({models:40,selector:80,thinking:40});
 const CONTROL_CHAR=/[\u0000-\u001F\u007F]/;
 const GEMINI_URL=/^\/u\/\d+\/app(?:\/[a-zA-Z0-9_-]+)?\/?$|^\/app(?:\/[a-zA-Z0-9_-]+)?\/?$/;
 const START_RETRY_CODES=new Set(['DESKTOP_RPC_REFUSED','DESKTOP_RPC_RESET','DESKTOP_RPC_TIMEOUT','DESKTOP_RPC_ERROR','DESKTOP_DISCOVERY_MISSING','DESKTOP_DISCOVERY_UNREADABLE','DESKTOP_DISCOVERY_INVALID']);
-const STATE=path.resolve(process.env.GEMINI_WORK_STATE||path.join(__dirname,'state','desktop-v1'));
+const STATE=path.resolve(process.env.GEMINI_WORK_STATE||path.join(__dirname,'..','state','desktop-v1'));
 
 class DesktopError extends Error{
  constructor(code,message,cause){super(message);this.name='DesktopError';this.code=code;this.cause=cause;}
@@ -391,8 +391,8 @@ class DesktopTransport{
   if(this.installationVerifier){const value=await this.installationVerifier();this._installation=value;return value;}
   const installation=this.installation();
   try{
-   const baseline=require('./desktop-baseline.json');
-   const filename=path.join(__dirname,'state','desktop-backup',APP_VERSION,'manifest.json');
+   const baseline=require('../desktop-baseline.json');
+   const filename=path.join(__dirname,'..','state','desktop-backup',APP_VERSION,'manifest.json');
    const manifest=JSON.parse(fs.readFileSync(filename,'utf8'));
    if(manifest.appVersion!==APP_VERSION||manifest.protocol!==PROTOCOL||path.resolve(manifest.installDir).toLowerCase()!==path.resolve(installation.appDir).toLowerCase()||path.resolve(manifest.stateDir).toLowerCase()!==this.stateDir.toLowerCase())throw Error('补丁版本、安装位置或状态目录不匹配');
    for(const [relative,original] of Object.entries(baseline.files)){

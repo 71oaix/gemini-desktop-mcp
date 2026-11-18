@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {TaskMachine,PHASES,PHASE_STATUS,COMPLETION_STABLE_MS}=require('../desktop-machine.cjs');
+const {TaskMachine,PHASES,PHASE_STATUS,COMPLETION_STABLE_MS}=require('../src/desktop-machine.cjs');
 
 const MARKER='[gemini-work:machine:abcd1234]';
 

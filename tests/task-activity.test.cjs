@@ -1,6 +1,6 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {taskActivity,healthActivity}=require('../task-activity.cjs');
+const {taskActivity,healthActivity}=require('../src/task-activity.cjs');
 
 const LAST='2026-01-01T00:00:00.000Z';
 const UPDATED='2026-01-01T00:00:05.000Z';

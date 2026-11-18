@@ -3,11 +3,11 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const os=require('node:os');
-const {Client}=require('../client.cjs');
-require('../desktop-transport.cjs');
-require('../worker.cjs');
-require('../supervisor.cjs');
-require('../server.cjs');
+const {Client}=require('../src/client.cjs');
+require('../src/desktop-transport.cjs');
+require('../src/worker.cjs');
+require('../src/supervisor.cjs');
+require('../src/server.cjs');
 
 test('two MCP clients share one idempotent desktop queue and enforce TXT boundaries',async()=>{
  const state=fs.mkdtempSync(path.join(os.tmpdir(),'gemini-work-test-'));

@@ -2,8 +2,8 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const vm=require('node:vm');
-const observer=require('../desktop-observer.cjs');
-const page=require('../desktop-page.cjs');
+const observer=require('../src/desktop-observer.cjs');
+const page=require('../src/desktop-page.cjs');
 
 function visible(){return {width:10,height:10};}
 function element(text,extra={}){

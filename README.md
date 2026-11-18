@@ -9,13 +9,33 @@
 ## 要求
 
 - Windows 11（已实测），当前 Windows 用户已登录桌面。
-- Node.js 22.13 或更新版本。
+- Node.js 22.13 或更新版本，且 `node.exe`、`npm.cmd` 在当前 `PATH` 中。
 - 自行准备合法来源的 Gemini Windows 桌面客户端 1.16.0，且文件须匹配本仓库基线。仓库不提供安装包，也不保证其他同名客户端兼容。
-- 安装补丁前完全退出客户端，确认没有生成中的回答和未保存草稿。
+- 当前用户对 Gemini 安装目录有写权限；补丁只替换 `resources/app.asar`，并校验基线列出的 unpacked 资源。
+- 首次安装补丁前完全退出客户端，确认没有生成中的回答和未保存草稿。
 
-## 安装（固定 1.16.0 基线）
+## 一键安装（Windows，固定 1.16.0）
 
-桌面补丁只修改已知 1.16.0 安装目录中的应用包文件（`resources/app.asar` 及基线列出的 unpacked 资源），并用 `desktop-baseline.json` 校验版本与文件哈希。基线为 `appVersion 1.16.0`，实际运行时为 Electron 44.5.1。版本或哈希不符时停止，不修补未知版本。`--assert-closed` 表示调用方已人工确认客户端完整退出；脚本不会替你关闭窗口、保存或丢弃草稿。
+从 [GitHub Releases](https://github.com/71oaix/gemini-desktop-mcp/releases/latest) 下载 Windows 安装 ZIP。将它解压到单独的长期存放目录，例如 `C:\Tools\gemini-desktop-mcp`。在托盘菜单中完全退出 Gemini，再双击解压后的 `Install.cmd`，或在 PowerShell 中执行：
+
+```powershell
+.\Install.cmd
+```
+
+脚本只面向已存在的 Gemini 1.16.0 默认安装目录 `%LOCALAPPDATA%\Google\Gemini\app-1.16.0`。它不会下载或附带 Gemini、Node.js、凭据或运行记录，也不会强制结束客户端、保存或丢弃草稿、自动升级或自动回滚。首次运行会：
+
+1. 检查 Node.js 版本、`npm` 和固定版本 `Gemini.exe`；
+2. 执行 `npm ci` 安装项目依赖；
+3. 用 `desktop-patch.cjs check` 校验基线，`build --writable` 构建到 `state/desktop-build`，再在确认客户端已退出后执行 `install`；
+4. 默认调用 `activate.ps1 -AddIfMissing` 配置 Codex。非 Codex 调用方使用 `.\Install.cmd -SkipCodex`，然后按 [mcp.example.toml](mcp.example.toml) 手动配置其他 MCP 客户端。
+
+再次运行 `Install.cmd` 时，如果检测到已知的可写补丁，不会重建或自动替换，而是核对已安装补丁的校验值和状态目录。配置 Codex 时，再检查页面可用和原生挂钩。检测到未知版本/哈希、只读补丁、配置节歧义或嵌套表、客户端仍在运行、Node/npm 不可用或任一子步骤失败时，安装停止，不继续写入；只读补丁不会自动回滚，需要按下方手动回滚步骤处理。
+
+如果 Codex 配置检查失败，客户端补丁可能已经安装，但配置文件不会被修改。修正配置后重新运行 `Install.cmd` 即可复用已验证的补丁。
+
+## 手动安装（固定 1.16.0 基线，默认目录以外或排查用）
+
+桌面补丁只修改已知 1.16.0 安装目录中的应用包文件（`resources/app.asar`），并用 `desktop-baseline.json` 校验版本与文件哈希。基线为 `appVersion 1.16.0`，实际运行时为 Electron 44.5.1。版本或哈希不符时停止，不修补未知版本。`--assert-closed` 表示调用方已人工确认客户端完整退出；脚本不会替你关闭窗口、保存或丢弃草稿。
 
 在仓库根目录的 PowerShell 中执行：
 
@@ -53,7 +73,7 @@ node desktop-patch.cjs rollback --install-dir $install --yes --assert-closed --j
 
 按 [mcp.example.toml](mcp.example.toml) 配置 MCP 客户端。示例采用 Codex 的 `mcp_servers` TOML 表；其他 MCP 客户端只需在各自的 stdio 配置中填入相同的 `command`、`args` 和环境变量。`command` 指向 Node 可执行文件，`args` 指向本仓库的 `server.cjs`。请把示例路径改成你自己的绝对路径。`GEMINI_WORK_STATE` 可省略，默认使用仓库下 `state/desktop-v1`；如保留或修改，必须与补丁使用的 `--bridge-state` 一致。不要使用别人机器上的路径或端口。
 
-Codex 用户如已配置 `[mcp_servers.gemini]`，可选择执行 `./activate.ps1` 更新该节。它先核验桌面桥（必要时启动客户端），再使用当前 Node 和仓库实际路径生成配置，保留其他配置节，并把首次旧配置节备份到被忽略的 `state/`。配置以原子替换写入；若没有该节或存在嵌套 Gemini 配置表则停止，不修改配置，应改用模板手动配置。其他 MCP 客户端使用上述模板即可。
+Codex 用户可执行 `./activate.ps1` 更新指向本目录的 `[mcp_servers.gemini]`；首次没有该节时使用 `./activate.ps1 -AddIfMissing`（`Install.cmd` 默认会这样做）。脚本先只读检查配置：存在嵌套、重复、内联或无法解析的 Gemini 配置，或现有节指向其他安装目录时停止，不修改配置；确认安全后才核验桌面桥（必要时启动客户端），保留其他配置节，并把首次旧配置节备份到被忽略的 `state/`。配置以原子替换写入。其他 MCP 客户端使用上述模板即可。
 
 配置或升级后需要重载或重连 MCP 客户端，新增工具才会出现在工具列表中。`server.cjs` 按需启动后台进程，不需要单独常驻启动 MCP 服务。
 
@@ -150,6 +170,18 @@ MCP 工具为 `gemini_connect / gemini_submit / gemini_status / gemini_wait / ge
 
 文档只保留当前有效内容；过期规则和旧批次不归档。清理文档不等于扩大已验证范围。
 
+## 生成发行 ZIP
+
+在源码目录执行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\package-windows.ps1
+```
+
+脚本使用显式白名单收集运行源码、安装/激活脚本、固定基线、示例、测试和文档，先在同目录写入临时 ZIP，完整生成并核对条目数后才原子替换 `dist/gemini-desktop-mcp-<version>-windows.zip`。重复运行不会留下半成品；失败时保留旧 ZIP 并返回非零。ZIP 不包含 `node_modules/`、`state/`、`dist/`、Gemini 客户端或任何客户端安装包。
+
+把 ZIP 解压到固定目录后运行 `Install.cmd`。补丁和 Codex 配置记录该目录的绝对路径。如果需要换目录，先在旧目录按手动回滚步骤还原客户端，再在新目录安装，并按示例更新指向旧目录的 Codex 配置。
+
 ## 开发检查
 
 ```powershell
@@ -157,7 +189,7 @@ npm ci
 npm test
 ```
 
-离线测试覆盖包布局、认证、草稿保护、发送边界、附件快照、共享队列、完成判定、并发清理和监督进程。离线通过不能替代真实收发、后台运行、断线和回滚验收。
+发行 ZIP 也包含 `tests/`，解压后同样可先 `npm ci` 再运行上述测试。离线测试覆盖包布局、认证、草稿保护、发送边界、附件快照、共享队列、完成判定、并发清理和监督进程。离线通过不能替代真实安装、真实收发、后台运行、断线和回滚验收。
 
 ## 许可证
 

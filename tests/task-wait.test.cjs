@@ -1,6 +1,6 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
-const {EventEmitter}=require('node:events');const {waitForTask}=require('../task-wait.cjs');
+const {EventEmitter}=require('node:events');const {waitForTask}=require('../src/task-wait.cjs');
 test('waiter notices a different process writing SQLite WAL without a periodic read',async t=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'gemini-wait-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
  let reads=0,status={status:'generating'};

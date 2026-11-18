@@ -6,8 +6,9 @@ const os=require('node:os');
 const path=require('node:path');
 const vm=require('node:vm');
 const crypto=require('node:crypto');
-const patch=require('../desktop-patch.cjs');
-const observer=require('../desktop-observer.cjs');
+const {spawnSync}=require('node:child_process');
+const patch=require('../src/desktop-patch.cjs');
+const observer=require('../src/desktop-observer.cjs');
 
 const ROOT=path.join(__dirname,'..');
 function tempDir(){return fs.mkdtempSync(path.join(os.tmpdir(),'gemini-patch-test-'));}
@@ -114,7 +115,7 @@ test('build changes only staging, preserves unpacked bytes/flags and injects one
  assert.equal(result.moduleDir,'gemini-work');
  const manifest=JSON.parse(fs.readFileSync(result.manifestPath,'utf8'));
  assert.equal(patch.PROTOCOL,2);
- assert.equal(require('../desktop-bridge.cjs').PROTOCOL,2);
+ assert.equal(require('../src/desktop-bridge.cjs').PROTOCOL,2);
  assert.equal(manifest.protocol,2);
  assert.equal(manifest.patchId,result.patchId);
  assert.equal(manifest.readOnly,true);
@@ -175,9 +176,9 @@ test('build changes only staging, preserves unpacked bytes/flags and injects one
  const bridgeFile=lib.extractFile(result.asarPath,'gemini-work/desktop-bridge.cjs');
  const pageFile=lib.extractFile(result.asarPath,'gemini-work/desktop-page.cjs');
  const observationFile=lib.extractFile(result.asarPath,'gemini-work/desktop-observation.cjs');
- assert.equal(sha256(bridgeFile),hashFile(path.join(ROOT,'desktop-bridge.cjs')));
- assert.equal(sha256(pageFile),hashFile(path.join(ROOT,'desktop-page.cjs')));
- assert.equal(sha256(observationFile),hashFile(path.join(ROOT,'desktop-observation.cjs')));
+ assert.equal(sha256(bridgeFile),hashFile(path.join(ROOT,'src','desktop-bridge.cjs')));
+ assert.equal(sha256(pageFile),hashFile(path.join(ROOT,'src','desktop-page.cjs')));
+ assert.equal(sha256(observationFile),hashFile(path.join(ROOT,'src','desktop-observation.cjs')));
  for(const name of unpackedExpected){
   const staged=path.join(stateRoot,'desktop-build','app.asar.unpacked',...name.split('/'));
   const installed=path.join(fixture.install,'resources','app.asar.unpacked',...name.split('/'));
@@ -348,4 +349,16 @@ test('install refuses an unknown current asar hash and CLI parsing is explicit',
  assert.equal(parsed.installDir,'C:/Gemini');
  const injected=patch.build?true:false;
  assert.equal(injected,true);
+});
+
+test('root CLI wrapper executes the patch entrypoint without an undefined run',async t=>{
+ const fixture=await makeFixture();
+ t.after(()=>cleanup(fixture.tmp));
+ const wrapper=require('../desktop-patch.cjs');
+ assert.equal(typeof wrapper.run,'function');
+ const cli=spawnSync(process.execPath,[path.join(ROOT,'desktop-patch.cjs'),'check','--install-dir',fixture.install,'--baseline',fixture.baselinePath,'--json'],{encoding:'utf8',timeout:60000,cwd:ROOT});
+ assert.equal(cli.status,0,cli.stderr);
+ const value=JSON.parse(cli.stdout);
+ assert.equal(value.ok,true,JSON.stringify(value.issues));
+ assert.equal(value.status,'original');
 });

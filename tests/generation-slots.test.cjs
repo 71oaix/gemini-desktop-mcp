@@ -6,8 +6,8 @@ const os=require('node:os');
 const path=require('node:path');
 const stateDir=fs.mkdtempSync(path.join(os.tmpdir(),'gemini-generation-slots-'));
 process.env.GEMINI_WORK_STATE=stateDir;
-const store=require('../store.cjs');
-const {runWorker}=require('../worker.cjs');
+const store=require('../src/store.cjs');
+const {runWorker}=require('../src/worker.cjs');
 
 function delay(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
 function startRuntime(db,token){

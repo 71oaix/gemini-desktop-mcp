@@ -61,14 +61,14 @@
 
 | 事实 | 依据 | 结论与限制 |
 |---|---|---|
-| 优先匹配目标会话页面；新独立任务仅复用模式可识别的空闲主页面，否则新建隐藏宿主窗口与嵌入 WebContentsView | [桌面桥](../../desktop-bridge.cjs) 的 `attachSession`、`openExtraSession`、`defaultCreateConversationView` | 不是为每个历史会话永久保留页面；额外页面共享原登录 session，但各有网页运行成本 |
+| 优先匹配目标会话页面；新独立任务仅复用模式可识别的空闲主页面，否则新建隐藏宿主窗口与嵌入 WebContentsView | [桌面桥](../../src/desktop-bridge.cjs) 的 `attachSession`、`openExtraSession`、`defaultCreateConversationView` | 不是为每个历史会话永久保留页面；额外页面共享原登录 session，但各有网页运行成本 |
 | 正常任务清理会销毁额外网页视图及宿主窗口，保留主页面 | 同文件 `cleanupTask`、`closeSessionIfUnused` | 正常路径资源随活动并发增长；异常创建、退出和长期运行是否泄漏仍需验证 |
 | 隐藏页面关闭后台节流，以持续观察生成 | 同文件 `defaultCreateConversationView` | 隐藏不等于不占 CPU/内存，不能用不可见证明资源可忽略 |
 | 当前生成上限为 3，同一会话已有生成时拒绝第二轮 | 同文件 `MAX_GENERATING`、`conversationBusy`；[相关测试](../../tests/desktop-bridge.test.cjs) | 代码和模拟测试支持该策略；单页/多页的真实增量开销尚未测定 |
-| 续聊入口要求本地父任务已完成并保存会话 URL | [队列](../../store.cjs) | 当前可续接本服务任务，尚不能管理全部 Gemini 历史 |
-| 续聊时保留当前模式，冲突参数按策略处理 | [模式策略](../../desktop-model-policy.cjs) 的 `planSurfaceAction` | 会话中途不切模式；冲突请求的报告方式由接口契约约束 |
-| 多轮依赖可通过父任务续聊关联；没有独立的多步业务任务管理实体 | [队列](../../store.cjs)、[工具契约](../../server.cjs) | 不将“一轮 completed”直接解释为整个业务任务结束 |
-| supervisor 监督 worker，worker 持久化任务并连接桌面桥，观察器接收页面状态 | [监督进程](../../supervisor.cjs)、[后台执行](../../worker.cjs)、[桌面桥](../../desktop-bridge.cjs) | 需要分别判断进程存活、心跳、桥连通、页面可用和任务有无进展 |
+| 续聊入口要求本地父任务已完成并保存会话 URL | [队列](../../src/store.cjs) | 当前可续接本服务任务，尚不能管理全部 Gemini 历史 |
+| 续聊时保留当前模式，冲突参数按策略处理 | [模式策略](../../src/desktop-model-policy.cjs) 的 `planSurfaceAction` | 会话中途不切模式；冲突请求的报告方式由接口契约约束 |
+| 多轮依赖可通过父任务续聊关联；没有独立的多步业务任务管理实体 | [队列](../../src/store.cjs)、[工具契约](../../src/server.cjs) | 不将“一轮 completed”直接解释为整个业务任务结束 |
+| supervisor 监督 worker，worker 持久化任务并连接桌面桥，观察器接收页面状态 | [监督进程](../../src/supervisor.cjs)、[后台执行](../../src/worker.cjs)、[桌面桥](../../src/desktop-bridge.cjs) | 需要分别判断进程存活、心跳、桥连通、页面可用和任务有无进展 |
 
 现有核对只读取进程资源快照，没有建立不同并发度的对照，因此不报告单会话资源成本，也不以当前总进程内存判断页面策略是否合适。
 

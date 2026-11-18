@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const {EventEmitter}=require('node:events');
-const {EventJournal}=require('../desktop-events.cjs');
+const {EventJournal}=require('../src/desktop-events.cjs');
 test('events are durable before delivery and replay explicitly resets expired cursors',t=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'gemini-events-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
  const filename=path.join(dir,'events.json'),journal=new EventJournal({filename,instanceId:'a',maxEvents:2});

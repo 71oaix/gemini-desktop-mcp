@@ -5,9 +5,9 @@ const path=require('node:path');
 const os=require('node:os');
 const http=require('node:http');
 process.env.GEMINI_WORK_STATE=fs.mkdtempSync(path.join(os.tmpdir(),'gemini-worker-state-'));
-const store=require('../store.cjs');
-const {runWorker}=require('../worker.cjs');
-const {DesktopTransport:RealDesktopTransport,DesktopError,READY_TIMEOUT_MS,validateWire}=require('../desktop-transport.cjs');
+const store=require('../src/store.cjs');
+const {runWorker}=require('../src/worker.cjs');
+const {DesktopTransport:RealDesktopTransport,DesktopError,READY_TIMEOUT_MS,validateWire}=require('../src/desktop-transport.cjs');
 class DesktopTransport extends RealDesktopTransport{constructor(options){super({...options,installationVerifier:async()=>({exists:true,versionMatches:true,patch:{ready:true}})});}}
 
 function readBody(request){return new Promise((resolve,reject)=>{const chunks=[];request.on('data',c=>chunks.push(c));request.on('end',()=>{try{resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')||'{}'));}catch(e){reject(e);}});request.on('error',reject);});}
@@ -450,7 +450,7 @@ test('capabilities is argument-free, normalized, and re-reads discovery for ever
 });
 
 test('capabilities normalization rejects truncated, malformed or unobserved ready payloads',()=>{
- const {normalizeCapabilities}=require('../desktop-transport.cjs');
+ const {normalizeCapabilities}=require('../src/desktop-transport.cjs');
  const model=(index=0,over={})=>({id:`mode-${index}`,name:`Model ${index}`,selector:`mode-${index}`,selected:false,disabled:false,restricted:false,available:true,unavailable_reason:null,...over});
  const ready=over=>({status:'ready',observed:true,observed_at:'2026-11-18T00:00:00.000Z',source:'observed_menu',reason:null,models:[model()],modes:{current:'chat'},thinking:{status:'observed',levels:[{level:'high',label:'高',selected:true,disabled:false}]},default_model:'hydrogen',...over});
  const forty=Array.from({length:40},(_,index)=>model(index));
