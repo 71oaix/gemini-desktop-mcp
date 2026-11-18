@@ -84,6 +84,44 @@ async function makeFixture(options={}){
  return {tmp,install,source,asarPath,baseline,baselinePath,originalMain:main,originalPreload:preload};
 }
 function cleanup(tmp){fs.rmSync(tmp,{recursive:true,force:true});}
+function runInstallWithRenameInjection(fixture,stateRoot,failRestore){
+ // Run in a child process so the rename hook never mutates this test
+ // process, and the fixture's install/state trees stay isolated.
+ const modulePath=path.join(ROOT,'src','desktop-patch.cjs');
+ const script=`
+'use strict';
+const fs=require('node:fs');
+const path=require('node:path');
+const patch=require(${JSON.stringify(modulePath)});
+const installDir=${JSON.stringify(fixture.install)};
+const stateRoot=${JSON.stringify(stateRoot)};
+const target=path.join(installDir,'resources','app.asar');
+const failRestore=${failRestore?'true':'false'};
+const realRename=fs.renameSync;
+let injected=false;
+fs.renameSync=function(source,dest){
+ if(dest!==target)return realRename.apply(fs,arguments);
+ if(injected){
+  if(failRestore){const error=new Error('injected backup restore failure');error.code='EACCES';throw error;}
+  return realRename.apply(fs,arguments);
+ }
+ const result=realRename.apply(fs,arguments);
+ if(!injected){
+  injected=true;
+  fs.writeFileSync(path.join(installDir,'resources','app.asar.unpacked','post-install-extra.txt'),'anomaly that restoring app.asar cannot fix');
+ }
+ return result;
+};
+patch.install({installDir,stateRoot,confirm:true,assertClosed:true}).then(()=>{
+ process.stdout.write(JSON.stringify({ok:true}));
+}).catch(error=>{
+ process.stdout.write(JSON.stringify({ok:false,code:error.code,message:error.message,restored:error.restored,verificationIssues:error.verificationIssues,restoreFailure:error.restoreFailure}));
+});
+`;
+ const result=spawnSync(process.execPath,['-e',script],{encoding:'utf8',timeout:60000,cwd:ROOT});
+ assert.equal(result.status,0,result.stderr);
+ return JSON.parse(result.stdout.trim());
+}
 
 test('check verifies every baseline file, the main hash and the unpacked header set',async t=>{
  const fixture=await makeFixture();
@@ -303,6 +341,41 @@ test('install requires explicit confirmation and a closed-app assertion, then re
  const again=await patch.install({installDir:fixture.install,stateRoot,confirm:true,assertClosed:true});
  assert.equal(again.status,'already_installed');
  assert.equal(hashFile(fixture.asarPath),built.asarSha256);
+});
+
+test('post-install verification failure reports a hash-verified restore and the remaining anomaly',async t=>{
+ const fixture=await makeFixture();
+ t.after(()=>cleanup(fixture.tmp));
+ const stateRoot=path.join(fixture.tmp,'state');
+ await patch.build({installDir:fixture.install,baselinePath:fixture.baselinePath,stateRoot,readOnly:true});
+ const outcome=runInstallWithRenameInjection(fixture,stateRoot,false);
+ assert.equal(outcome.ok,false);
+ assert.equal(outcome.code,'POST_VERIFY_FAILED');
+ assert.equal(outcome.restored,true);
+ assert.ok(outcome.verificationIssues.some(issue=>issue.code==='UNPACKED_EXTRA'&&issue.path==='post-install-extra.txt'));
+ assert.match(outcome.message,/原厂 app\.asar 已恢复并通过哈希核对/);
+ assert.match(outcome.message,/仍有待处理的校验问题/);
+ assert.equal(hashFile(fixture.asarPath),fixture.baseline.files['resources/app.asar'].sha256,'the original asar must be restored');
+ assert.ok(fs.existsSync(path.join(fixture.install,'resources','app.asar.unpacked','post-install-extra.txt')));
+ assert.ok(!fs.existsSync(path.join(stateRoot,'desktop-backup','1.16.0','install.json')),'a failed install must not record a usable installation');
+});
+
+test('post-install verification failure with failed backup restore reports both failure sources',async t=>{
+ const fixture=await makeFixture();
+ t.after(()=>cleanup(fixture.tmp));
+ const stateRoot=path.join(fixture.tmp,'state');
+ const built=await patch.build({installDir:fixture.install,baselinePath:fixture.baselinePath,stateRoot,readOnly:true});
+ const outcome=runInstallWithRenameInjection(fixture,stateRoot,true);
+ assert.equal(outcome.ok,false);
+ assert.equal(outcome.code,'POST_VERIFY_ROLLBACK_FAILED');
+ assert.equal(outcome.restored,false);
+ assert.match(outcome.message,/安装后校验失败/);
+ assert.match(outcome.message,/无法确认原厂 app\.asar 已恢复/);
+ assert.match(outcome.message,/请先不要启动 Gemini/);
+ assert.ok(outcome.verificationIssues.some(issue=>issue.code==='UNPACKED_EXTRA'&&issue.path==='post-install-extra.txt'));
+ assert.match(outcome.restoreFailure,/EACCES: injected backup restore failure/);
+ assert.equal(hashFile(fixture.asarPath),built.asarSha256,'a failed restore leaves the patched asar in place');
+ assert.ok(!fs.existsSync(path.join(stateRoot,'desktop-backup','1.16.0','install.json')),'a failed restore must not record a usable installation');
 });
 
 test('rollback restores only the known patched hash and refuses unknown files',async t=>{

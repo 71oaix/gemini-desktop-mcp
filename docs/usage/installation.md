@@ -4,11 +4,13 @@
 
 - Windows 11（已实测），当前 Windows 用户已登录桌面。
 - Node.js 22.13 或更新版本，且 `node.exe`、`npm.cmd` 在当前 `PATH` 中。
-- 自行准备合法来源的 Gemini Windows 桌面客户端 1.16.0，且文件须匹配本仓库基线。仓库不提供安装包，也不保证其他同名客户端兼容。
+- 安装与仓库基线匹配的 Gemini Windows 桌面客户端 1.16.0。官方下载页提供当前版本，项目安装器会检查已安装文件的哈希。 [Google Gemini 桌面客户端下载](https://gemini.google/desktop/)
 - 当前用户对 Gemini 安装目录有写权限；补丁只替换 `resources/app.asar`，并校验基线列出的 unpacked 资源。
 - 首次安装补丁前完全退出客户端，确认没有生成中的回答和未保存草稿。
 
 ## 一键安装
+
+解压前可核对 ZIP 的 SHA-256。在 PowerShell 中运行 `Get-FileHash -Algorithm SHA256 -LiteralPath 'ZIP 的完整路径'`，将输出与对应 [GitHub 发行页](https://github.com/71oaix/gemini-desktop-mcp/releases) 的校验值比较。
 
 从 [GitHub Releases](https://github.com/71oaix/gemini-desktop-mcp/releases/latest) 下载 Windows 安装 ZIP。将它解压到单独的长期存放目录，例如 `C:\Tools\gemini-desktop-mcp`。补丁和 Codex 配置会记住这个目录的绝对路径。需要换目录时，先按下文回滚，再在新目录安装并更新旧的 Codex 配置。
 
@@ -63,7 +65,9 @@ node client.cjs connect
 node desktop-patch.cjs rollback --install-dir $install --yes --assert-closed --json
 ```
 
-升级本项目桥接代码前也要先回滚到库存 `app.asar`，再重新 `build` 和 `install`；`build` 只接受原始基线。客户端升级后版本或哈希变化时停止安装，不要沿用旧补丁。补丁会修改已安装客户端文件，可能影响官方支持状态；请自行评估并遵守 Google 的适用条款。
+如果安装后校验失败，`POST_VERIFY_FAILED` 表示原厂 `app.asar` 已恢复并通过哈希核对，错误中仍会列出待处理的校验问题。`POST_VERIFY_ROLLBACK_FAILED` 表示无法确认恢复成功。遇到后一种情况请保持 Gemini 关闭，保留 `state/desktop-backup/` 供排查。
+
+升级本项目桥接代码前，先恢复原厂 `app.asar`，再执行 `build` 和 `install`。`build` 只接受原始基线。Gemini 客户端版本或文件哈希变动后，安装会停止。
 
 ## 接入 MCP
 

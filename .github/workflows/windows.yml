@@ -1,0 +1,54 @@
+name: Windows
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package-and-test:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22.x, 24.x]
+    name: Windows / Node ${{ matrix.node }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+      - name: Build, extract and test the Windows ZIP
+        shell: pwsh
+        run: |
+          $zip = & ./scripts/package-windows.ps1
+          $unpacked = Join-Path $env:RUNNER_TEMP 'Gemini MCP package'
+          Expand-Archive -LiteralPath $zip -DestinationPath $unpacked
+          foreach ($path in @(
+              'Install.cmd',
+              'README.md',
+              'docs/usage/installation.md',
+              'docs/usage/asking-gemini.md'
+          )) {
+              if (-not (Test-Path -LiteralPath (Join-Path $unpacked $path) -PathType Leaf)) {
+                  throw "Missing ZIP entry: $path"
+              }
+          }
+          Push-Location -LiteralPath $unpacked
+          try {
+              npm ci --no-audit --no-fund
+              if ($LASTEXITCODE) { exit $LASTEXITCODE }
+              npm test
+              if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          } finally {
+              Pop-Location
+          }
