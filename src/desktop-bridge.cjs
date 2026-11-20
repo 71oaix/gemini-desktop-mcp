@@ -1092,12 +1092,10 @@ if(hasPageContent(state)&&!ownedByPrepared(state,task.ledger,names))throw page.P
    task.machine.setPhase('ready_to_send');
    return {before};
   }
+  // Attribute replies to a unique user-message turn. A single turn can
+  // expose the same text more than once through the renderer.
   function markerHit(state,marker){
-   const queries=Array.isArray(state.queries)?state.queries:[];
-   const hit=page.isMarkerLast(queries,marker);
-   const query=hit.count===1?String(queries.find(text=>String(text||'').includes(marker))):'';
-   if(query&&query.indexOf(marker)!==query.lastIndexOf(marker))return {...hit,count:2};
-   return hit;
+   return page.isMarkerLast(Array.isArray(state.queries)?state.queries:[],marker);
   }
   function confirmationTarget(task,state){
    const session=task.session||null;
@@ -1138,7 +1136,7 @@ if(hasPageContent(state)&&!ownedByPrepared(state,task.ledger,names))throw page.P
     throw error;
    }
    const hit=markerHit(state,marker);
-   if(hit.count>1)throw page.PageError('MARKER_DUPLICATED','会话中出现多个任务标记，无法安全归属回答');
+   if(hit.count>1)throw confirmationFailure(task,'MARKER_DUPLICATED','多个用户消息含同一任务标记，无法安全归属回答','marker-conflict');
    if(hit.count===1&&!hit.last)throw page.PageError('MARKER_NOT_LAST','任务标记后有后续用户消息，无法安全归属回答');
    if(!hit.count)throw page.PageError('SEND_UNCONFIRMED','发送后未确认任务标记，按未知发送状态处理');
    ledger.phases.marker_seen=confirmationTarget(task,state);

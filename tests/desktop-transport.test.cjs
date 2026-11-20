@@ -388,6 +388,20 @@ test('ensureRunning stops retrying a live process after the bounded start timeou
  assert.equal(clock,3000);
 });
 
+test('cold start reports asynchronous launch errors before waiting for the bridge',async()=>{
+ const state=fs.mkdtempSync(path.join(os.tmpdir(),'gemini-desktop-launch-error-'));
+ try{
+  const exe=path.join(state,'missing','Gemini.exe');
+  const transport=new RealDesktopTransport({stateDir:state,autoStart:true,installationVerifier:async()=>({exists:true,versionMatches:true,exe,patch:{ready:true}})});
+  let waits=0;
+  transport.waitForBridge=async()=>{waits++;throw Error('A failed process start cannot produce a bridge');};
+  const result=await transport.ensureRunning();
+  assert.equal(result.running,false);
+  assert.equal(result.code,'DESKTOP_LAUNCH_FAILED');
+  assert.equal(waits,0);
+ }finally{fs.rmSync(state,{recursive:true,force:true});}
+});
+
 test('ensureRunning does not retry protocol, hash or auth rejection',async()=>{
  for(const code of ['DESKTOP_PROTOCOL_MISMATCH','DESKTOP_APP_VERSION_MISMATCH','DESKTOP_PATCH_HANDSHAKE_MISMATCH','DESKTOP_INSTALLATION_CHANGED','UNAUTHORIZED']){
   const state=fs.mkdtempSync(path.join(os.tmpdir(),'gemini-desktop-rejected-'));

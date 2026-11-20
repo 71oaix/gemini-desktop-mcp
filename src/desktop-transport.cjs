@@ -3,6 +3,7 @@ const path=require('node:path');
 const http=require('node:http');
 const crypto=require('node:crypto');
 const {spawn}=require('node:child_process');
+const {once}=require('node:events');
 const {openEventStream}=require('./desktop-stream.cjs');
 const policy=require('./desktop-model-policy.cjs');
 const APP_VERSION='1.16.0';
@@ -456,7 +457,7 @@ class DesktopTransport{
   let child;
   try{
    child=spawn(installation.exe,[],{detached:true,windowsHide:true,stdio:'ignore',env:{...process.env,GEMINI_WORK_BACKGROUND:'1'}});
-   child.on('error',()=>{});
+   await once(child,'spawn');
    child.unref();
   }catch(e){
    return {running:false,state:'desktop_launch_failed',code:'DESKTOP_LAUNCH_FAILED',message:`无法启动桌面客户端：${e.message}`,installation};

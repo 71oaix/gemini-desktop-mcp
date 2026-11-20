@@ -66,7 +66,11 @@ function applySnapshot(db,token,snapshot,point){
  if(result){
   if(typeof result.answer!=='string')throw Error('EVENT_ANSWER_INVALID');
   if(result.answer_truncated||metadata.answer_truncated)throw Error('EVENT_ANSWER_TRUNCATED');
-  const merged={...current.result,...result,timings:metadata.diagnostics||current.result?.timings||null};
+  // Start and finish evidence are monotonic across replay and sync payloads.
+  const url=store.boundConversation(current.result?.url)&&current.result?.submission_confirmed===true?current.result.url:result.url;
+  const merged={...current.result,...result,url,timings:metadata.diagnostics||current.result?.timings||null,
+   submission_confirmed:current.result?.submission_confirmed===true||result.submission_confirmed===true,
+   submission_known:current.result?.submission_known===true||result.submission_known===true};
   if(diagnostic)Object.assign(merged,diagnostic);
   else{
    delete merged.completion_unverified;delete merged.completion_unverified_reason;delete merged.diagnostic;
@@ -76,7 +80,13 @@ function applySnapshot(db,token,snapshot,point){
   const cleared={...current.result};delete cleared.completion_unverified;delete cleared.completion_unverified_reason;delete cleared.diagnostic;
   patch.result=cleared;
  }
- Object.assign(patch,submissionPatch(current,snapshot,patch.result||current.result));
+ const submission=submissionPatch(current,snapshot,patch.result||current.result);
+ Object.assign(patch,submission);
+ const base=patch.result||current.result||null;
+ const intent=patch.send_intent!==undefined?patch.send_intent:current.send_intent;
+ const delivery=store.deliveryOf(base?.delivery,snapshot,base,intent===1);
+ if(base)patch.result={...base,delivery};
+ else if(delivery.state!=='not_sent')patch.result={delivery};
  if(snapshot.status==='completed'||snapshot.status==='failed'){patch.next_attempt=null;patch.next_op=null;}
  store.update(db,current.id,patch);return true;
 }

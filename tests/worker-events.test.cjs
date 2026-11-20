@@ -6,6 +6,7 @@ const os=require('node:os');
 const state=fs.mkdtempSync(path.join(os.tmpdir(),'gemini-worker-events-'));
 process.env.GEMINI_WORK_STATE=state;
 const store=require('../src/store.cjs');
+const queueEvents=require('../src/queue-events.cjs');
 const {runWorker,unsentProof}=require('../src/worker.cjs');
 
 function clean(db){
@@ -1100,5 +1101,74 @@ test('a lost execute reply is never converted into a new send',async()=>{
   assert.ok(final.next_attempt>=before+60000,`next_attempt=${final.next_attempt}`);
   assert.equal(transport.executeCalls.length,1);
   assert.equal(transport.snapshotCalls.length,0);
+ }finally{db.close();}
+});
+
+test('delivery evidence separates acceptance, send intent, observed message and bound conversation',async()=>{
+ const db=store.open();clean(db);
+ const id='events-delivery-evidence';
+ try{
+  store.submit(db,{task_id:id,prompt:'hello'});
+  const task=store.row(db,id);
+  // 1. Accepted only: the generated task id and marker prove nothing was sent.
+  assert.equal(task.status,'queued');
+  let status=store.status(db,id);
+  assert.equal(status.send_state,'not_sent');
+  assert.deepEqual(status.delivery,{state:'not_sent',message_observed:false,conversation_confirmed:false});
+  startRuntime(db,'worker-delivery');
+  assert.equal(store.nextTask(db,'worker-delivery').id,id);
+  assert.equal(queueEvents.synchronize(db,'worker-delivery',{instance_id:'epoch-delivery',seq:0,snapshots:[]}).seq,0);
+  const preparing={task_id:id,status:'connecting',phase:'preparing',revision:0,send_state:'not_sent',result:{answer:'',url:null,marker:task.marker,submission_confirmed:false,submission_known:true}};
+  assert.equal(queueEvents.applyEvent(db,'worker-delivery',{instance_id:'epoch-delivery',seq:1,snapshot:preparing}).applied,true);
+  status=store.status(db,id);
+  assert.equal(status.status,'connecting');
+  assert.equal(status.marker,task.marker);
+  assert.equal(status.delivery.state,'not_sent');
+  // 2. A recorded send boundary alone stays an unconfirmed intent.
+  const submitting={...preparing,status:'submitting',phase:'submitting',revision:1,send_state:'uncertain'};
+  assert.equal(queueEvents.applyEvent(db,'worker-delivery',{instance_id:'epoch-delivery',seq:2,snapshot:submitting}).applied,true);
+  status=store.status(db,id);
+  assert.equal(status.send_state,'intent_persisted');
+  assert.deepEqual(status.delivery,{state:'intent',message_observed:false,conversation_confirmed:false});
+  // A later preparing snapshot cannot erase the recorded intent.
+  assert.equal(queueEvents.applyEvent(db,'worker-delivery',{instance_id:'epoch-delivery',seq:3,snapshot:{...preparing,revision:2}}).applied,true);
+  assert.equal(store.status(db,id).delivery.state,'intent');
+  // 3. The bridge observed the marker, but no conversation URL is bound yet.
+  const observed={task_id:id,status:'generating',phase:'generating',revision:3,send_state:'submitted',result:{answer:'',url:null,marker:task.marker,submission_confirmed:false,submission_known:true}};
+  assert.equal(queueEvents.applyEvent(db,'worker-delivery',{instance_id:'epoch-delivery',seq:4,snapshot:observed}).applied,true);
+  status=store.status(db,id);
+  assert.equal(status.conversation_url,null);
+  assert.deepEqual(status.delivery,{state:'observed',message_observed:true,conversation_confirmed:false});
+  assert.equal(store.result(db,{task_id:id}).delivery.state,'observed');
+  // A later fault snapshot still cannot erase the observed-message evidence.
+  const faulted={...observed,status:'uncertain',phase:'uncertain',revision:4,error:{code:'SEND_UNCONFIRMED_URL',message:'late url'}};
+  assert.equal(queueEvents.applyEvent(db,'worker-delivery',{instance_id:'epoch-delivery',seq:5,snapshot:faulted}).applied,true);
+  assert.equal(store.status(db,id).delivery.message_observed,true);
+  // 4. Only an explicit URL binds the conversation. The existing late-bind
+  // recover path supplies it without a second send.
+  writeBridgeLedger(id,{
+   task_id:id,marker:task.marker,status:'uncertain',phase:'uncertain',revision:4,released:false,
+   result:{answer:'',url:null,submission_confirmed:false,marker:task.marker,beforeResponses:0},
+   error:{code:'SEND_UNCONFIRMED_URL',message:'late url'},
+   metadata:{marker_seen_target:{session_id:'primary',extra:false,web_contents_id:1}},
+   phases:{prepared:{at:new Date(0).toISOString()},send_intent:{at:new Date(0).toISOString()},marker_seen:{at:new Date(0).toISOString(),url:'https://gemini.google.com/app'},confirmed:null,terminal:null}
+  });
+  startRuntime(db,'worker-delivery-recover');
+  store.update(db,id,{status:'uncertain',next_attempt:0,next_op:'recover',recover:1,send_intent:1});
+  const own=snapshotFor(task,{status:'uncertain',revision:4,url:null,confirmed:false,send_state:'submitted',error:{code:'SEND_UNCONFIRMED_URL',message:'late url'},metadata:{execution_active:false}});
+  const transport=new FakeTransport({
+   synchronize:()=>({instance_id:'epoch-delivery-recover',seq:0,snapshots:[own]}),
+   recover:()=>({...own,metadata:{execution_active:true}}),
+   stream:subscription=>subscription.emit({type:'task',data:taskEvent('epoch-delivery-recover',task,{seq:1,status:'completed',revision:6,answer:'bound answer',url:'https://gemini.google.com/app/bound'})})
+  });
+  await runOnce(db,transport,'worker-delivery-recover');
+  assert.equal(store.row(db,id).status,'completed');
+  assert.equal(transport.executeCalls.length,0,'late binding must never execute again');
+  assert.equal(transport.recoverCalls.length,1);
+  status=store.status(db,id);
+  assert.equal(status.send_state,'confirmed');
+  assert.equal(status.conversation_url,'https://gemini.google.com/app/bound');
+  assert.deepEqual(status.delivery,{state:'confirmed',message_observed:true,conversation_confirmed:true});
+  assert.equal(store.result(db,{task_id:id}).delivery.conversation_confirmed,true);
  }finally{db.close();}
 });

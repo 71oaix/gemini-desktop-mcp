@@ -65,7 +65,7 @@ function mergeResult(existing,snapshot,task){
  return {
   ...current,
   answer:incoming.answer||current.answer||'',
-  url:incoming.url||current.url||null,
+  url:current.submission_confirmed===true&&store.boundConversation(current.url)?current.url:incoming.url||current.url||null,
   model:actual||legacyModel,
   ...fields,
   complete:current.complete===true||incoming.complete===true,
@@ -309,7 +309,12 @@ function snapshotPatch(current,task,snapshot){
  // sets it, and a trusted pre-send failure (including MODEL_UNAVAILABLE and
  // ATTACHMENT_NOT_READY) clears it so official closeTask can finish the row.
  const chatNotReady=chatNotReadyUnsent(snapshot,result);
- Object.assign(patch,queueEvents.submissionPatch(current,snapshot,result));
+ const submission=queueEvents.submissionPatch(current,snapshot,result);
+ // Persist the same delivery evidence as pushed events. An observed marker
+ // without a bound URL stays `observed` even when a later snapshot or fault
+ // carries no send state.
+ result.delivery=store.deliveryOf(current.result?.delivery,snapshot,result,(submission.send_intent!==undefined?submission.send_intent:current.send_intent)===1);
+ Object.assign(patch,submission);
  // Reuse the existing bounded send retry for this proven-unsent snapshot.
  if(chatNotReady)patch.error_code='NOT_SENT';
  if(snapshot.status==='completed'||snapshot.status==='failed'){patch.next_attempt=null;patch.next_op=null;}

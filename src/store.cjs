@@ -24,6 +24,21 @@ function conversationKey(url){
  if(typeof url!=='string'||!url)return null;
  try{return new URL(url).pathname.replace(/\/+$/,'')||null;}catch{return null;}
 }
+// Use the same URL contract as the desktop bridge.
+const {hasConversationId:boundConversation}=require('./desktop-page.cjs');
+// Delivery evidence is monotonic and separate from task lifecycle. A queued or
+// preparing task, a generated task id/marker and a persisted send intent never
+// prove that the message reached a conversation. Once the bridge observed the
+// marker or bound the conversation URL, a later preparing snapshot or fault
+// cannot erase that evidence.
+function deliveryOf(prior,snapshot,result,intent=false){
+ const previous=prior&&typeof prior==='object'?prior:{};
+ const current=result&&typeof result==='object'?result:{};
+ if(boundConversation(current.url)&&(previous.conversation_confirmed===true||current.submission_confirmed===true||snapshot?.send_state==='confirmed'))return {state:'confirmed',message_observed:true,conversation_confirmed:true};
+ if(previous.message_observed===true||current.submission_confirmed===true||snapshot?.send_state==='submitted'||snapshot?.send_state==='confirmed')return {state:'observed',message_observed:true,conversation_confirmed:false};
+ if(intent)return {state:'intent',message_observed:false,conversation_confirmed:false};
+ return {state:'not_sent',message_observed:false,conversation_confirmed:false};
+}
 function taskConversationKey(task){
  const request=task.request||parseJson(task.request,{})||{};
  const result=task.result||parseJson(task.result,null)||{};
@@ -468,6 +483,9 @@ function status(db,taskId){
   diagnostic:r.result?.completion_unverified===true?r.result.diagnostic||null:null,
   conversation_url:r.result?.url||null,has_partial_answer:!!r.result?.answer,
   marker:r.marker||null,send_state:r.result?.submission_confirmed?'confirmed':r.send_intent?'intent_persisted':'not_sent',
+  // Additive structured evidence for callers. `send_state` keeps its historical
+  // values; delivery is the field that may be reported as confirmed delivery.
+  delivery:deliveryOf(r.result?.delivery,null,r.result,r.send_intent===1),
   result_file:r.result_file||r.result?.resultFile||null,
   desktop_app_version:APP_VERSION,transport:'desktop-loopback'
  };
@@ -637,13 +655,21 @@ function settleFromLedger(db,task,ledger){
  if(!ledgerIsTerminal(ledger))return false;
  const status=LEDGER_TERMINAL.has(ledger.status)?ledger.status:(ledger.released?'failed':task.status);
  if(!LEDGER_TERMINAL.has(status))return false;
- const result=ledger.result||parseJson(task.result,null);
+ const prior=parseJson(task.result,null)||{};
+ const result=ledger.result?{...ledger.result}:parseJson(task.result,null);
+ if(result&&prior.submission_confirmed===true&&boundConversation(prior.url)){
+  result.url=prior.url;
+  result.submission_confirmed=true;
+ }
+ // A settled ledger must not erase message-observed evidence learned earlier.
+ const sendState=ledger.phases?.confirmed?'confirmed':ledger.phases?.marker_seen?'submitted':null;
+ const stored=result?{...result,delivery:deliveryOf(prior.delivery,{send_state:sendState},result,!!ledger.phases?.send_intent)}:null;
  const error=ledger.error;
  const errorCode=error&&typeof error==='object'?error.code||null:task.error_code||null;
  const errorMessage=error&&typeof error==='object'?error.message||null:typeof error==='string'?error:task.error||null;
  db.prepare("UPDATE tasks SET status=?,result=?,error=?,error_code=?,next_attempt=NULL,next_op=NULL,phase=?,notified=1,updated=? WHERE id=?").run(
   status,
-  result?JSON.stringify(result):null,
+  stored?JSON.stringify(stored):null,
   errorMessage,
   errorCode,
   ledger.phase||status,
@@ -727,4 +753,4 @@ function resumeAfterProbe(db){
  return resumed;
 }
 
-module.exports={ROOT,STATE,APP_VERSION,PROTOCOL,MAX_FILE_BYTES,MAX_TOTAL_BYTES,MAX_FILES,RETRY_DELAYS,MAX_RETRIES,MAX_GENERATING,AUTH_CODES,RETRYABLE_CODES,PRE_SEND_UNSENT_CODES,now,id,taskDir,stopRequested,alive,sha256,open,row,update,updateOwned,runtime,recoverStaging,submit,fallbackDetails,stats,scheduleRetry,deferMonitor,nextTask,hasEligibleQueued,returnToQueue,conversationKey,taskConversationKey,occupiesGeneration,isEligibleQueued,probe,status,result,resultPath,writeResultFile,markSubmitting,interruptActive,claimSupervisor,heartbeatSupervisor,startWorker,heartbeatWorker,workerOwns,setConnection,releaseWorker,releaseSupervisor,resumeAfterProbe,closeTask,closeStaleUnsent,promptFor,ledgerSendIntent,lateBindPending,isPreSendUnsent};
+module.exports={ROOT,STATE,APP_VERSION,PROTOCOL,MAX_FILE_BYTES,MAX_TOTAL_BYTES,MAX_FILES,RETRY_DELAYS,MAX_RETRIES,MAX_GENERATING,AUTH_CODES,RETRYABLE_CODES,PRE_SEND_UNSENT_CODES,now,id,taskDir,stopRequested,alive,sha256,open,row,update,updateOwned,runtime,recoverStaging,submit,fallbackDetails,stats,scheduleRetry,deferMonitor,nextTask,hasEligibleQueued,returnToQueue,conversationKey,boundConversation,deliveryOf,taskConversationKey,occupiesGeneration,isEligibleQueued,probe,status,result,resultPath,writeResultFile,markSubmitting,interruptActive,claimSupervisor,heartbeatSupervisor,startWorker,heartbeatWorker,workerOwns,setConnection,releaseWorker,releaseSupervisor,resumeAfterProbe,closeTask,closeStaleUnsent,promptFor,ledgerSendIntent,lateBindPending,isPreSendUnsent};

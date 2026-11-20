@@ -491,6 +491,18 @@ test('a late conversation id after SEND_UNCONFIRMED_URL is bound read-only by re
  assert.equal(env.counts.newChat,0,'late binding must not choose or create another conversation');
 });
 
+test('a repeated marker inside one rendered turn does not imply a second send',async t=>{
+ const env=await setup({readOnly:false,behavior:{afterSend(h){
+  h.update({queries:[marker('one-rendered-turn')+' '+marker('one-rendered-turn')]});
+ }}});
+ t.after(async()=>{await env.handle.close();fs.rmSync(env.stateDir,{recursive:true,force:true});});
+ await rpc(env,{op:'execute',task:wire('one-rendered-turn')});
+ await waitStatus(env,'one-rendered-turn',['generating']);
+ const done=await settleAnswer(env,'one-rendered-turn','one answer for the same turn');
+ assert.equal(done.result.submission_confirmed,true);
+ assert.equal(env.counts.send,1);
+});
+
 test('late binding without a uniquely owned marker stays unconfirmed and never resends',async t=>{
  const envs=[];
  t.after(async()=>{for(const env of envs){await env.handle.close();fs.rmSync(env.stateDir,{recursive:true,force:true});}});
