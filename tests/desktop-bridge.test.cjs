@@ -280,7 +280,7 @@ function firstEvent(stream,timeout=1000){
  });
 }
 async function setup(over={}){
- const stateDir=tempDir();
+ const stateDir=over.stateDir||tempDir();
  const h=createHarness(over.initial||{},over);
  const timers=over.clock||null;
  const handle=bridge.attach(h.wc,{
@@ -452,7 +452,7 @@ test('model availability is exact and never downgraded',async t=>{
  assert.equal(env.counts.send,0);
 });
 
-test('marker at bare /app is noted as submitted but confirmation waits for a real id and never resends',async t=>{
+test('a late conversation id after SEND_UNCONFIRMED_URL is bound read-only by recover and yields the full answer',async t=>{
  const env=await setup({readOnly:false,confirmationMs:30,initial:{},behavior:{confirmUrl:false}});
  t.after(async()=>{await env.handle.close();fs.rmSync(env.stateDir,{recursive:true,force:true});});
  await rpc(env,{op:'execute',task:wire('bare-url')});
@@ -461,16 +461,96 @@ test('marker at bare /app is noted as submitted but confirmation waits for a rea
  assert.equal(uncertain.result.submission_confirmed,false);
  assert.equal(uncertain.send_state,'submitted');
  assert.ok(uncertain.metadata.marker_seen_at);
- const ledger=JSON.parse(fs.readFileSync(path.join(env.stateDir,'bridge-tasks','bare-url.json'),'utf8'));
- assert.ok(ledger.phases.marker_seen);
- assert.equal(ledger.phases.confirmed,null);
+ assert.equal(uncertain.metadata.confirmation_diagnostic.stage,'url-timeout');
  assert.equal(env.counts.send,1);
+ const before=JSON.parse(fs.readFileSync(path.join(env.stateDir,'bridge-tasks','bare-url.json'),'utf8'));
+ assert.ok(before.phases.marker_seen);
+ assert.equal(before.phases.confirmed,null);
+ assert.equal(before.phases.marker_seen.session_id,'primary');
+ // The replay never sends again while only a bare /app has been observed.
  const replay=await rpc(env,{op:'execute',task:wire('bare-url')});
  assert.equal(replay.json.data.status,'uncertain');
- const recovered=await rpc(env,{op:'recover',task_id:'bare-url'});
- assert.equal(recovered.json.data.status,'uncertain');
  assert.equal(env.counts.send,1);
+ // The original observation target later publishes the real URL and answer.
+ const response=env.h.state.responses[env.h.state.responses.length-1];
+ response.answer='late full answer for '+marker('bare-url');
+ response.complete=true;
+ env.h.update({url:'https://gemini.google.com/app/conv-late'});
+ const recovered=await rpc(env,{op:'recover',task_id:'bare-url'});
+ assert.equal(recovered.json.ok,true);
+ const done=await waitStatus(env,'bare-url',['completed'],5000);
+ assert.equal(done.result.submission_confirmed,true);
+ assert.equal(done.result.url,'https://gemini.google.com/app/conv-late');
+ assert.equal(done.result.answer,'late full answer for '+marker('bare-url'));
+ const ledger=JSON.parse(fs.readFileSync(path.join(env.stateDir,'bridge-tasks','bare-url.json'),'utf8'));
+ assert.ok(ledger.phases.confirmed&&ledger.phases.terminal);
+ assert.equal(ledger.metadata.late_bind.resolved_url,'https://gemini.google.com/app/conv-late');
+ assert.equal(env.counts.send,1,'late binding must never send again');
  assert.equal(env.counts.type,1);
+ assert.equal(env.counts.nav,0,'late binding must not navigate');
+ assert.equal(env.counts.newChat,0,'late binding must not choose or create another conversation');
+});
+
+test('late binding without a uniquely owned marker stays unconfirmed and never resends',async t=>{
+ const envs=[];
+ t.after(async()=>{for(const env of envs){await env.handle.close();fs.rmSync(env.stateDir,{recursive:true,force:true});}});
+ const cases=[
+  {id:'late-no-id',expect:'SEND_UNCONFIRMED_URL'},
+  {id:'late-missing',expect:'MARKER_MISMATCH',apply:env=>env.h.update({url:'https://gemini.google.com/app/conv-missing',queries:['another user message'],responses:[{answer:'other answer',complete:true}]})},
+  {id:'late-duplicate',expect:'MARKER_DUPLICATED',apply:env=>env.h.update({url:'https://gemini.google.com/app/conv-dup',queries:[marker('late-duplicate'),marker('late-duplicate')],responses:[{answer:'a',complete:true},{answer:'b',complete:true}]})},
+  {id:'late-followup',expect:'MARKER_NOT_LAST',apply:env=>env.h.update({url:'https://gemini.google.com/app/conv-follow',queries:[marker('late-followup'),'a later user message'],responses:[{answer:'a',complete:true},{answer:'b',complete:true}]})}
+ ];
+ for(const item of cases){
+  const env=await setup({readOnly:false,confirmationMs:30,initial:{},behavior:{confirmUrl:false}});
+  envs.push(env);
+  await rpc(env,{op:'execute',task:wire(item.id)});
+  const uncertain=await waitStatus(env,item.id,['uncertain'],4000);
+  assert.equal(uncertain.error.code,'SEND_UNCONFIRMED_URL',item.id);
+  if(item.apply)item.apply(env);
+  const recovered=await rpc(env,{op:'recover',task_id:item.id});
+  assert.equal(recovered.json.ok,true,item.id);
+  const held=await waitSnapshot(env,item.id,data=>data.status==='uncertain'&&data.error?.code===item.expect,4000);
+  assert.equal(held.result.submission_confirmed,false,item.id);
+  assert.equal(env.counts.send,1,item.id+' must not resend');
+  assert.equal(env.counts.type,1,item.id+' must not type again');
+  assert.equal(env.counts.nav,0,item.id+' must not navigate');
+  assert.equal(env.counts.newChat,0,item.id+' must not choose another conversation');
+ }
+});
+
+test('a late id from a different conversation is rejected for a continued task',async t=>{
+ const original='https://gemini.google.com/app/conv-a';
+ const env=await setup({readOnly:false,confirmationMs:30,initial:{url:original},behavior:{confirmUrl:'https://gemini.google.com/app'}});
+ t.after(async()=>{await env.handle.close();fs.rmSync(env.stateDir,{recursive:true,force:true});});
+ const id='late-mismatch';
+ await rpc(env,{op:'execute',task:wire(id,{conversation_url:original})});
+ const uncertain=await waitStatus(env,id,['uncertain']);
+ assert.equal(uncertain.error.code,'SEND_UNCONFIRMED_URL');
+ env.update({url:'https://gemini.google.com/app/conv-b'});
+ await rpc(env,{op:'recover',task_id:id});
+ const held=await waitSnapshot(env,id,data=>data.error?.code==='CONVERSATION_CHANGED');
+ assert.equal(held.status,'uncertain');
+ assert.equal(held.result.submission_confirmed,false);
+ assert.equal(env.counts.send,1);
+});
+
+test('late binding never treats a replacement bridge as the original primary page',async t=>{
+ const original=await setup({readOnly:false,confirmationMs:30,behavior:{confirmUrl:false}});
+ t.after(async()=>{await original.handle.close();fs.rmSync(original.stateDir,{recursive:true,force:true});});
+ const id='late-restart';
+ await rpc(original,{op:'execute',task:wire(id)});
+ const uncertain=await waitStatus(original,id,['uncertain']);
+ assert.equal(uncertain.error.code,'SEND_UNCONFIRMED_URL');
+ await original.handle.close();
+ const replacement=await setup({stateDir:original.stateDir,readOnly:false,initial:{
+  url:'https://gemini.google.com/app/late-restart',queries:[marker(id)],responses:[{answer:'answer',complete:true}]
+ }});
+ t.after(()=>replacement.handle.close());
+ await rpc(replacement,{op:'recover',task_id:id});
+ const held=await waitSnapshot(replacement,id,data=>data.error?.code==='LATE_BIND_TARGET_LOST');
+ assert.equal(held.status,'uncertain');
+ assert.equal(held.result.url,null);
+ assert.equal(replacement.counts.send+replacement.counts.nav,0);
 });
 
 test('explicit budget reports partial metadata but retains occupancy until real completion',async t=>{
@@ -1139,10 +1219,10 @@ test('ready derives an explicit login fault from pushed state instead of warming
  assert.equal(env.counts.send,0);
 });
 
-function extraViews(){
+function extraViews(options={}){
  const extras=[];
  const factory=()=>{
-  const extra=createHarness();
+  const extra=createHarness({},options);
   extra.hello();
   extras.push(extra);
   return {wc:extra.wc,observation:extra.host,api:extra,close(){try{extra.host.close();}catch{}}};
@@ -1169,6 +1249,32 @@ test('the explicit attach preload path is forwarded to an extra view factory',as
  assert.equal(calls.length,1);
  assert.equal(calls[0].source,env.wc);
  assert.deepEqual(calls[0].options,{show:false,preloadPath});
+});
+
+test('late recovery reuses a retained extra page and keeps additional views bounded',async t=>{
+ const factory=extraViews({behavior:{confirmUrl:false}});
+ const env=await setup({readOnly:false,confirmationMs:30,createConversationView:factory,initial:{
+  url:'https://gemini.google.com/app/unrelated',surface:{mode:null,selected:null,options:[]}
+ }});
+ t.after(async()=>{await env.handle.close();fs.rmSync(env.stateDir,{recursive:true,force:true});});
+ for(const id of ['extra-late-one','extra-late-two','extra-late-three']){
+  await rpc(env,{op:'execute',task:wire(id)});
+  assert.equal((await waitStatus(env,id,['uncertain'])).error.code,'SEND_UNCONFIRMED_URL');
+ }
+ await rpc(env,{op:'execute',task:wire('extra-late-overflow')});
+ const blocked=await waitStatus(env,'extra-late-overflow',['needs_user_action']);
+ assert.equal(blocked.error.code,'SESSION_VIEW_UNAVAILABLE');
+ assert.equal(factory.extras.length,3);
+ const first=factory.extras[0];
+ const url='https://gemini.google.com/app/recovered-extra';
+ first.update({url,responses:[{answer:'reply from original extra page',complete:true}]});
+ await rpc(env,{op:'recover',task_id:'extra-late-one'});
+ const done=await waitStatus(env,'extra-late-one',['completed']);
+ assert.equal(done.result.url,url);
+ assert.equal(done.result.answer,'reply from original extra page');
+ assert.equal(first.counts.send,1);
+ assert.equal(env.counts.send,0);
+ assert.equal(factory.extras.length,3);
 });
 
 test('an independent task opens a new chat instead of reusing the previous conversation',async t=>{

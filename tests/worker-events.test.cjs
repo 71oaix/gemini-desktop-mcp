@@ -12,6 +12,12 @@ function clean(db){
  db.exec('DELETE FROM tasks; DELETE FROM runtime;');
  db.prepare("DELETE FROM meta WHERE key='desktop_event_cursor'").run();
  fs.rmSync(path.join(state,'stop-worker'),{force:true});
+ fs.rmSync(path.join(state,'bridge-tasks'),{recursive:true,force:true});
+}
+function writeBridgeLedger(taskId,value){
+ const directory=path.join(state,'bridge-tasks');
+ fs.mkdirSync(directory,{recursive:true});
+ fs.writeFileSync(path.join(directory,`${taskId}.json`),JSON.stringify(value));
 }
 function startRuntime(db,workerToken){
  db.prepare('DELETE FROM runtime').run();
@@ -434,6 +440,73 @@ test('rebinding a confirmed task recovers once without executing it again',async
   assert.equal(transport.executeCalls.length,0);
   assert.equal(transport.recoverCalls.length,1);
   assert.equal(transport.releaseCalls.length,1);
+ }finally{db.close();}
+});
+
+test('a durable marker without a URL recovers read-only through recover and enables continue_task_id',async()=>{
+ const db=store.open();clean(db);
+ const id='events-late-bind';
+ try{
+  store.submit(db,{task_id:id,prompt:'hello'});
+  const task=store.row(db,id);
+  store.update(db,id,{
+   status:'uncertain',next_attempt:0,next_op:'snapshot',send_intent:1,
+   error:'已在页面看到任务标记，但未获得带会话 id 的 URL；保持待确认且绝不重发',error_code:'SEND_UNCONFIRMED_URL',
+   result:{answer:'',url:null,model:null,submission_confirmed:false,submission_known:true,marker:task.marker,beforeResponses:0}
+  });
+  writeBridgeLedger(id,{
+   task_id:id,marker:task.marker,status:'uncertain',phase:'uncertain',revision:2,released:false,
+   result:{answer:'',url:null,submission_confirmed:false,marker:task.marker,beforeResponses:0},
+   error:{code:'SEND_UNCONFIRMED_URL',message:'late url'},
+   metadata:{marker_seen_target:{session_id:'primary',extra:false,web_contents_id:1}},
+   phases:{prepared:{at:new Date(0).toISOString()},send_intent:{at:new Date(0).toISOString()},marker_seen:{at:new Date(0).toISOString(),url:'https://gemini.google.com/app'},confirmed:null,terminal:null}
+  });
+  startRuntime(db,'worker-late-bind');
+  const own=snapshotFor(task,{status:'uncertain',revision:2,url:null,confirmed:false,send_state:'submitted',error:{code:'SEND_UNCONFIRMED_URL',message:'late url'},metadata:{execution_active:false}});
+  assert.ok(store.resumeAfterProbe(db).includes(id));
+  assert.equal(store.row(db,id).next_op,'recover');
+  const completed=taskEvent('epoch-late',task,{seq:1,status:'completed',revision:5,answer:'late full answer',url:'https://gemini.google.com/app/late'});
+  const transport=new FakeTransport({
+   synchronize:()=>({instance_id:'epoch-late',seq:0,snapshots:[own]}),
+   recover:()=>({...own,metadata:{execution_active:true}}),
+   stream:sub=>sub.emit({type:'task',data:completed})
+  });
+  await runOnce(db,transport,'worker-late-bind');
+  const final=store.row(db,id);
+  assert.equal(final.status,'completed');
+  assert.equal(store.result(db,{task_id:id}).answer,'late full answer');
+  assert.equal(final.result.url,'https://gemini.google.com/app/late');
+  assert.equal(transport.executeCalls.length,0,'late binding must never execute again');
+  assert.equal(transport.recoverCalls.length,1);
+  assert.equal(transport.releaseCalls.length,1);
+  const child=store.submit(db,{prompt:'follow up',continue_task_id:id});
+  assert.equal(store.row(db,child.task_id).request.url,'https://gemini.google.com/app/late');
+ }finally{db.close();}
+});
+
+test('late binding remains uncertain after bounded automatic attempts and can reconnect',async()=>{
+ const db=store.open();clean(db);
+ const id='events-late-bind-exhausted';
+ try{
+  store.submit(db,{task_id:id,prompt:'hello'});
+  const task=store.row(db,id);
+  store.update(db,id,{status:'uncertain',next_attempt:0,next_op:'recover',attempts:store.MAX_RETRIES,send_intent:1});
+  const code='SEND_UNCONFIRMED_URL';
+  const own=snapshotFor(task,{status:'uncertain',revision:2,confirmed:false,send_state:'submitted',error:{code},metadata:{execution_active:false}});
+  writeBridgeLedger(id,{...own,phases:{send_intent:{at:1},marker_seen:{at:2},confirmed:null}});
+  startRuntime(db,'worker-late-bind-exhausted');
+  const transport=new FakeTransport({
+   synchronize:()=>({instance_id:'epoch-late-exhausted',seq:0,snapshots:[own]}),
+   recover:()=>own
+  });
+  await runOnce(db,transport,'worker-late-bind-exhausted');
+  const held=store.row(db,id);
+  assert.equal(held.status,'uncertain');
+  assert.equal(held.error_code,code);
+  assert.equal(held.next_attempt,null);
+  assert.equal(transport.executeCalls.length,0);
+  assert.ok(store.resumeAfterProbe(db).includes(id));
+  assert.equal(store.row(db,id).next_op,'recover');
  }finally{db.close();}
 });
 

@@ -54,6 +54,10 @@ MCP 工具为 `gemini_connect / gemini_submit / gemini_status / gemini_wait / ge
 
 完成判定的细节见[页面观察与完成判定](../survey/task-service-design-evidence.md#已实现的页面接入与完成判定)。
 
+任务标记已经出现，但会话地址仍为 `/app` 时，后台会在原页面做有限次只读恢复。若同一页面随后出现有效会话地址，且标记仍唯一、位于最后一条用户消息中，后台会补绑会话并继续读取回答。用 `gemini_result` 取回答案，任务完成后用 `continue_task_id` 续聊。恢复过程中只观察原页面，发送次数保持不变。
+
+自动尝试结束后，任务仍为 `uncertain`。原页面仍在时，可运行 `gemini_connect`（CLI 为 `node client.cjs connect`）再检查。原页面关闭、客户端重启、标记无法唯一归属或地址与目标会话冲突时，任务会保持待确认。补绑已通过离线回归测试，桌面客户端实测待完成。
+
 长时间没有新事件时，后台执行一次空闲诊断：ping 观察器并检查最近推送状态，不读取页面。若已有回答但不满足完整结束证据，或观察不到新进度，任务保持 `generating`，状态中带 `completion_unverified` 和 `diagnostic`；`gemini_wait` / CLI `wait` 会立即返回 `wait_reason`，任务、原会话和执行状态均保留。
 
 执行进程由轻量 supervisor 监控。进程退出或断线后继续使用原任务编号；队列和桥接各自记录发送边界。不能确认发送时，不通过新建会话规避。正常停止后台：创建 `state/desktop-v1/stop-worker`，等待 `health` 中 supervisor 和 worker 退出；恢复前删除该文件，再执行 `connect`。

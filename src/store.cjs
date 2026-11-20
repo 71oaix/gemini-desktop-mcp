@@ -356,6 +356,10 @@ function deferMonitor(db,taskId,error,options={}){
  const mode=options.mode||'snapshot';
  const at=Number.isFinite(options.at)?options.at:now();
  if(task.attempts>=MAX_RETRIES){
+  if(options.keepUncertain){
+   db.prepare("UPDATE tasks SET status='uncertain',error=?,error_code=?,next_attempt=NULL,next_op=?,updated=? WHERE id=?").run(error,options.error_code||'SEND_UNKNOWN',mode,at,taskId);
+   return {scheduled:false,exhausted:false};
+  }
   db.prepare("UPDATE tasks SET status='failed',error=?,error_code=?,next_attempt=NULL,next_op=NULL,updated=? WHERE id=?").run(`自动恢复次数已用尽：${error}`,'RETRY_EXHAUSTED',at,taskId);
   if(task.result?.answer)writeResultFile(db,taskId,task.result);
   return {scheduled:false,exhausted:true};
@@ -611,6 +615,15 @@ function ledgerSendIntent(taskId){
  const ledger=readBridgeLedger(taskId);
  return !!(ledger&&ledger.phases&&ledger.phases.send_intent);
 }
+// A marker is durable bridge evidence that the turn reached the page even
+// while the conversation id is still missing. Recovery may sample only that
+// recorded page; it never turns the missing URL into a resend.
+function lateBindPending(taskId,ledger=readBridgeLedger(taskId)){
+ if(!ledger||ledger.released)return false;
+ const phases=ledger.phases&&typeof ledger.phases==='object'?ledger.phases:{};
+ if(!phases.send_intent||!phases.marker_seen||phases.confirmed)return false;
+ return ledger.status!=='completed'&&ledger.status!=='failed';
+}
 function isPreSendUnsent(task){
  if(!task||task.recover)return false;
  const result=typeof task.result==='string'?parseJson(task.result,{}):(task.result||{});
@@ -703,7 +716,10 @@ function resumeAfterProbe(db){
   const sent=!!task.send_intent||!!task.recover||task.status==='uncertain'||!!ledger?.phases?.send_intent||!!ledger?.phases?.confirmed;
   const allowed=sent||AUTH_CODES.has(task.error_code)||RETRYABLE_CODES.has(task.error_code)||/登录|授权|只读|read.?only|网络|地区|桥/i.test(task.error||'');
   if(!allowed)continue;
-  const next_op=sent?(result?.submission_confirmed&&result?.url?'recover':'snapshot'):'send';
+  // A recorded marker without a confirmed URL is recoverable only through the
+  // read-only late-bind path; plain unknown-send tasks keep snapshot.
+  const confirmed=!!(result?.submission_confirmed&&result?.url);
+  const next_op=(confirmed||lateBindPending(task.id,ledger))?'recover':(sent?'snapshot':'send');
   db.prepare("UPDATE tasks SET status='queued',error=NULL,error_code=NULL,next_attempt=NULL,next_op=?,recover=?,attempts=0,notified=0,updated=? WHERE id=?").run(next_op,next_op==='recover'?1:0,now(),task.id);
   resumed.push(task.id);
  }
@@ -711,4 +727,4 @@ function resumeAfterProbe(db){
  return resumed;
 }
 
-module.exports={ROOT,STATE,APP_VERSION,PROTOCOL,MAX_FILE_BYTES,MAX_TOTAL_BYTES,MAX_FILES,RETRY_DELAYS,MAX_RETRIES,MAX_GENERATING,AUTH_CODES,RETRYABLE_CODES,PRE_SEND_UNSENT_CODES,now,id,taskDir,stopRequested,alive,sha256,open,row,update,updateOwned,runtime,recoverStaging,submit,fallbackDetails,stats,scheduleRetry,deferMonitor,nextTask,hasEligibleQueued,returnToQueue,conversationKey,taskConversationKey,occupiesGeneration,isEligibleQueued,probe,status,result,resultPath,writeResultFile,markSubmitting,interruptActive,claimSupervisor,heartbeatSupervisor,startWorker,heartbeatWorker,workerOwns,setConnection,releaseWorker,releaseSupervisor,resumeAfterProbe,closeTask,closeStaleUnsent,promptFor,ledgerSendIntent,isPreSendUnsent};
+module.exports={ROOT,STATE,APP_VERSION,PROTOCOL,MAX_FILE_BYTES,MAX_TOTAL_BYTES,MAX_FILES,RETRY_DELAYS,MAX_RETRIES,MAX_GENERATING,AUTH_CODES,RETRYABLE_CODES,PRE_SEND_UNSENT_CODES,now,id,taskDir,stopRequested,alive,sha256,open,row,update,updateOwned,runtime,recoverStaging,submit,fallbackDetails,stats,scheduleRetry,deferMonitor,nextTask,hasEligibleQueued,returnToQueue,conversationKey,taskConversationKey,occupiesGeneration,isEligibleQueued,probe,status,result,resultPath,writeResultFile,markSubmitting,interruptActive,claimSupervisor,heartbeatSupervisor,startWorker,heartbeatWorker,workerOwns,setConnection,releaseWorker,releaseSupervisor,resumeAfterProbe,closeTask,closeStaleUnsent,promptFor,ledgerSendIntent,lateBindPending,isPreSendUnsent};
