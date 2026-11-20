@@ -65,7 +65,7 @@ function mergeResult(existing,snapshot,task){
  return {
   ...current,
   answer:incoming.answer||current.answer||'',
-  url:incoming.url||current.url||null,
+  url:current.submission_confirmed===true&&store.boundConversation(current.url)?current.url:incoming.url||current.url||null,
   model:actual||legacyModel,
   ...fields,
   complete:current.complete===true||incoming.complete===true,
@@ -89,6 +89,13 @@ const confirmedUnsent=queueEvents.confirmedUnsent;
 // not_sent, a known and unconfirmed submission, and no recorded message.
 const chatNotReadyUnsent=queueEvents.chatNotReadyUnsent;
 function transientCode(code){return store.RETRYABLE_CODES.has(code)||SEND_UNSAFE_CODES.has(code)||NETWORK_CODES.has(code);}
+// Only a confirmed URL or durable marker-seen evidence may select recover.
+// Everything else keeps snapshot; neither path can resend.
+function recoveryMode(task,result){
+ if(result?.submission_confirmed===true&&typeof result.url==='string'&&result.url)return 'recover';
+ if(task&&store.lateBindPending(task.id))return 'recover';
+ return 'snapshot';
+}
 function fenced(error){return error?.fenced===true||error?.code==='WORKER_FENCED';}
 function markerFailure(error){return error?.code==='MARKER_MISMATCH'||error?.code==='EVENT_MARKER_MISMATCH'||/MARKER_MISMATCH/.test(error?.message||'');}
 function truncatedFailure(error){return /ANSWER_TRUNCATED/.test(error?.message||'')||error?.code==='EVENT_ANSWER_TRUNCATED';}
@@ -164,7 +171,7 @@ async function ensureReady(ctx){
 }
 function noteAttention(ctx,task,message,errorCodeValue,result=task.result){
  if(task.notified!==1)ctx.log(`任务 ${task.id} 需要用户处理：${message}`);
- return {status:'needs_user_action',error:message,error_code:errorCodeValue,notified:1,next_attempt:null,next_op:result?.submission_confirmed&&result?.url?'recover':'snapshot'};
+ return {status:'needs_user_action',error:message,error_code:errorCodeValue,notified:1,next_attempt:null,next_op:recoveryMode(task,result)};
 }
 
 async function updateOwnedTask(ctx,taskId,patch){
@@ -236,12 +243,12 @@ async function handleBridgeUnavailable(ctx,task,readiness){
  const current=store.row(ctx.db,task.id);
  const message=readiness.message||'桌面桥不可用；没有发送聊天消息';
  const code=readiness.code||'BRIDGE_UNAVAILABLE';
- const sent=!!current.send_intent||['submitting','generating'].includes(current.status);
+ const sent=!!current.send_intent||!!current.recover||store.ledgerSendIntent(task.id)||['submitting','generating'].includes(current.status);
  const result=current.result||{};
  if(transientCode(code)){
   await setConnection(ctx,'disconnected');
   if(sent||result.submission_confirmed||result.answer){
-   const mode=result.submission_confirmed&&result.url?'recover':'snapshot';
+   const mode=recoveryMode(task,result);
    const scheduled=store.deferMonitor(ctx.db,task.id,`桌面桥连接中断（${code}）；只保留查询/恢复，不重新发送`,{mode,error_code:code});
    if(result.answer)store.writeResultFile(ctx.db,task.id,result);
    return {terminal:true,status:scheduled.exhausted?'failed':'uncertain'};
@@ -249,7 +256,7 @@ async function handleBridgeUnavailable(ctx,task,readiness){
   const scheduled=store.scheduleRetry(ctx.db,task.id,message,{mode:'send',error_code:code});
   return {terminal:true,status:scheduled.exhausted?'failed':'retry_wait'};
  }
- const nextOp=sent?(result.submission_confirmed&&result.url?'recover':'snapshot'):'send';
+ const nextOp=sent?recoveryMode(task,result):'send';
  await updateOwnedTask(ctx,task.id,{...noteAttention(ctx,current,message,code,current.result),next_op:nextOp});
  await setConnection(ctx,'needs_user_action');
  if(current.result?.answer)store.writeResultFile(ctx.db,task.id,current.result);
@@ -271,7 +278,7 @@ async function handleStartupNotReady(ctx,task,pending){
  const requested=['recover','snapshot'].includes(task.next_op)?task.next_op:null;
  const sent=!!requested||!!current.send_intent||!!current.result?.submission_confirmed||['submitting','generating','uncertain'].includes(current.status);
  if(sent){
-  const mode=requested||(current.result?.submission_confirmed&&current.result?.url?'recover':'snapshot');
+  const mode=requested||recoveryMode(task,current.result);
   const scheduled=store.deferMonitor(ctx.db,task.id,pending.message,{mode,error_code:pending.code});
   await setConnection(ctx,'connected');
   if(current.result?.answer)store.writeResultFile(ctx.db,task.id,current.result);
@@ -302,7 +309,12 @@ function snapshotPatch(current,task,snapshot){
  // sets it, and a trusted pre-send failure (including MODEL_UNAVAILABLE and
  // ATTACHMENT_NOT_READY) clears it so official closeTask can finish the row.
  const chatNotReady=chatNotReadyUnsent(snapshot,result);
- Object.assign(patch,queueEvents.submissionPatch(current,snapshot,result));
+ const submission=queueEvents.submissionPatch(current,snapshot,result);
+ // Persist the same delivery evidence as pushed events. An observed marker
+ // without a bound URL stays `observed` even when a later snapshot or fault
+ // carries no send state.
+ result.delivery=store.deliveryOf(current.result?.delivery,snapshot,result,(submission.send_intent!==undefined?submission.send_intent:current.send_intent)===1);
+ Object.assign(patch,submission);
  // Reuse the existing bounded send retry for this proven-unsent snapshot.
  if(chatNotReady)patch.error_code='NOT_SENT';
  if(snapshot.status==='completed'||snapshot.status==='failed'){patch.next_attempt=null;patch.next_op=null;}
@@ -380,7 +392,7 @@ async function releaseOnce(ctx,task,session){
 async function monitorFailure(ctx,task,error){
  const current=store.row(ctx.db,task.id);
  const result=current.result||{};
- const mode=result.submission_confirmed&&result.url?'recover':'snapshot';
+ const mode=recoveryMode(task,result);
  const code=error?.code||'EVENT_STREAM_FAILED';
  const message=`桌面桥连接中断（${code}）；只保留查询/恢复，不重新发送`;
  await setConnection(ctx,'disconnected');
@@ -418,7 +430,7 @@ async function settleTask(ctx,task,{snapshot=null,session=null}={}){
    return {terminal:true,status:scheduled.exhausted?'failed':'retry_wait'};
   }
   if(transientCode(error.code)&&(current.send_intent||result.submission_confirmed||result.answer)){
-   const mode=result.submission_confirmed&&result.url?'recover':'snapshot';
+   const mode=recoveryMode(task,result);
    const scheduled=store.scheduleRetry(ctx.db,task.id,error.message||'已发送任务连接中断；只恢复原会话',{mode,error_code:error.code});
    if(result.answer)store.writeResultFile(ctx.db,task.id,result);
    await setConnection(ctx,'connected');
@@ -436,7 +448,7 @@ async function settleTask(ctx,task,{snapshot=null,session=null}={}){
    return {terminal:true,status:scheduled.exhausted?'failed':'retry_wait'};
   }
   if(transientCode(error.code)&&(current.send_intent||result.submission_confirmed||result.answer)){
-   const mode=result.submission_confirmed&&result.url?'recover':'snapshot';
+   const mode=recoveryMode(task,result);
    const scheduled=store.scheduleRetry(ctx.db,task.id,error.message||'已发送任务连接中断；只恢复原会话',{mode,error_code:error.code});
    if(result.answer)store.writeResultFile(ctx.db,task.id,result);
    await setConnection(ctx,'connected');
@@ -449,8 +461,9 @@ async function settleTask(ctx,task,{snapshot=null,session=null}={}){
   return {terminal:true,status:'needs_user_action'};
  }
  if(status==='uncertain'){
-  const mode=result.submission_confirmed&&result.url?'recover':'snapshot';
-  const scheduled=store.deferMonitor(ctx.db,task.id,error.message||'发送状态未确认；只允许查询或恢复',{mode,error_code:error.code||'SEND_UNKNOWN'});
+  const mode=recoveryMode(task,result);
+  const keepUncertain=mode==='recover'&&!result.submission_confirmed;
+  const scheduled=store.deferMonitor(ctx.db,task.id,error.message||'发送状态未确认；只允许查询或恢复',{mode,error_code:error.code||'SEND_UNKNOWN',keepUncertain});
   if(result.answer)store.writeResultFile(ctx.db,task.id,result);
   await setConnection(ctx,'disconnected');
   return {terminal:true,status:scheduled.exhausted?'failed':'uncertain'};
@@ -462,7 +475,7 @@ async function settleTask(ctx,task,{snapshot=null,session=null}={}){
    await setConnection(ctx,'connected');
    return {terminal:false,budget:true};
   }
-  const scheduled=store.scheduleRetry(ctx.db,task.id,error.message||'回答尚未完整；稍后只读取原会话',{mode:result.submission_confirmed&&result.url?'recover':'snapshot',error_code:error.code||'ANSWER_PARTIAL'});
+  const scheduled=store.scheduleRetry(ctx.db,task.id,error.message||'回答尚未完整；稍后只读取原会话',{mode:recoveryMode(task,result),error_code:error.code||'ANSWER_PARTIAL'});
   await setConnection(ctx,'connected');
   return {terminal:true,status:scheduled.exhausted?'failed':'partial'};
  }
@@ -542,8 +555,12 @@ async function syncTask(ctx,task,state,session){
    const saved=await store.updateOwned(ctx.db,task.id,ctx.token,{event_instance:state.instance_id});
    if(!saved)throw new FencedError();
   }
-  const settled=await settleTask(ctx,task,{snapshot:recovered,session});
-  if(settled.terminal)return settled;
+  // A recovery may return the last uncertain snapshot while its new
+  // observer is binding. Keep listening for the outcome of that attempt.
+  if(!(recovered.status==='uncertain'&&recovered.metadata?.execution_active===true)){
+   const settled=await settleTask(ctx,task,{snapshot:recovered,session});
+   if(settled.terminal)return settled;
+  }
  }else if(!state.seenTask&&!state.freshSend){
   return failClosed(ctx,task,'TASK_NOT_FOUND','桌面桥没有该任务的快照；不重发未知或已释放的旧任务');
  }
@@ -552,7 +569,11 @@ async function syncTask(ctx,task,state,session){
 }
 function canRecover(ctx,task){
  const current=store.row(ctx.db,task.id);
- return current.result?.submission_confirmed===true&&typeof current.result?.url==='string'&&!!current.result.url&&typeof ctx.transport.recover==='function';
+ if(typeof ctx.transport.recover!=='function')return false;
+ if(current.result?.submission_confirmed===true&&typeof current.result?.url==='string'&&!!current.result.url)return true;
+ // Durable marker evidence without a URL may bind only through the bridge's
+ // read-only late-bind path. The send intent itself is not enough.
+ return store.lateBindPending(task.id);
 }
 
 function runEventStream(ctx,task,state,session){
@@ -732,8 +753,8 @@ async function handleTask(ctx,task){
  const session={released:false};
  const ledgerSent=store.ledgerSendIntent(task.id);
  let mode=task.next_op||(task.recover||task.send_intent||ledgerSent?'snapshot':'send');
- if(mode==='send'&&(task.send_intent||ledgerSent))mode=task.result?.submission_confirmed&&task.result?.url?'recover':'snapshot';
- if(mode==='send'&&task.recover)mode=task.result?.submission_confirmed&&task.result?.url?'recover':'snapshot';
+ if(mode==='send'&&(task.send_intent||ledgerSent))mode=recoveryMode(task,task.result);
+ if(mode==='send'&&task.recover)mode=recoveryMode(task,task.result);
  if(mode==='send')return sendFlow(ctx,task,readiness,session);
  return monitor(ctx,task,{mode,session});
 }
@@ -745,7 +766,7 @@ async function handleUnexpected(ctx,task,error){
  if(TERMINAL_STATUSES.has(current.status)&&!budgetActive)return;
  if(current.send_intent||ACTIVE_STATUSES.has(current.status)||budgetActive){
   const result=current.result||{};
-  const mode=result.submission_confirmed&&result.url?'recover':'snapshot';
+  const mode=recoveryMode(task,result);
   if(!ctx.owns())throw new FencedError();
   const scheduled=store.deferMonitor(ctx.db,task.id,`执行异常：${error.message}`,{mode,error_code:error.code||'EXECUTOR_ERROR'});
   if(!scheduled.scheduled&&result.answer)store.writeResultFile(ctx.db,task.id,result);

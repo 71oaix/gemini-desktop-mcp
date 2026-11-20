@@ -52,13 +52,34 @@ MCP 工具为 `gemini_connect / gemini_submit / gemini_status / gemini_wait / ge
 | needs_user_action | 处理登录、验证码、确认弹窗、草稿或冲突后调用 connect |
 | completed / failed | 任务结束，结果或失败原因保留 |
 
+### 送达证据
+
+`gemini_submit` 返回的 `task_id` 只表示任务已接单；`queued / connecting / staging`、已生成的任务编号或任务标记都不是发送或送达证据。`status / wait / result` 在保留原有 `send_state` 的同时增加 `delivery`：
+
+| delivery.state | 含义 | 可报告的内容 |
+|---|---|---|
+| not_sent | 没有发送边界证据；排队、准备和明确未发送都在此 | 不能说已发送 |
+| intent | 已记录发送意图或发送点击，但未观察到消息 | 只能说发送结果未确认 |
+| observed | 页面已观察到任务消息，但还没有绑定会话地址 | 只能说原任务待确认 |
+| confirmed | 已确认提交并取得有效会话地址 | 才能说该消息在该会话 |
+
+`send_state` 继续提供 `confirmed / intent_persisted / not_sent` 以兼容现有消费方。调用方报告前应先查询原任务：只有 `delivery.state=confirmed` 且 `delivery.conversation_confirmed=true`，并带有有效 `conversation_url` 时，才能说该消息在该会话；`intent` 或 `observed` 不能补写成发送成功。发送状态未知时按原任务编号查询或恢复，绝不重发。
+
 完成判定的细节见[页面观察与完成判定](../survey/task-service-design-evidence.md#已实现的页面接入与完成判定)。
+
+任务标记已经出现，但会话地址仍为 `/app` 时，后台会在原页面做有限次只读恢复；此时 `delivery` 保持 `observed`（已见消息、未绑定会话），不会因后续失败快照回退。若同一页面随后出现有效会话地址，且标记仍唯一、位于最后一条用户消息中，后台会补绑会话并继续读取回答。用 `gemini_result` 取回答案，任务完成后用 `continue_task_id` 续聊。恢复过程中只观察原页面，发送次数保持不变。
+
+自动尝试结束后，任务仍为 `uncertain`。原页面仍在时，可运行 `gemini_connect`（CLI 为 `node client.cjs connect`）再检查。原页面关闭、客户端重启、标记无法唯一归属或地址与目标会话冲突时，任务会保持待确认。补绑已通过离线回归测试，桌面客户端实测待完成。
 
 长时间没有新事件时，后台执行一次空闲诊断：ping 观察器并检查最近推送状态，不读取页面。若已有回答但不满足完整结束证据，或观察不到新进度，任务保持 `generating`，状态中带 `completion_unverified` 和 `diagnostic`；`gemini_wait` / CLI `wait` 会立即返回 `wait_reason`，任务、原会话和执行状态均保留。
 
 执行进程由轻量 supervisor 监控。进程退出或断线后继续使用原任务编号；队列和桥接各自记录发送边界。不能确认发送时，不通过新建会话规避。正常停止后台：创建 `state/desktop-v1/stop-worker`，等待 `health` 中 supervisor 和 worker 退出；恢复前删除该文件，再执行 `connect`。
 
 `needs_user_action` 且尚未发出（`send_state=not_sent`）的失败任务，应先按错误码和账本查明原因；在补丁和后台未确认恢复前不要释放，也不要按同一编号重交。`release` 可同步已结束的桥记录或关闭从未发送的任务，但不终止已发送的生成。修复并确认当前连接健康后，可关闭明确未发送的失败记录；确需重新执行时使用新的任务编号。过期的重连或释放通知不要重复执行；以当前 `health` 和账本为准。
+
+## 多轮协作评审
+
+调用方（例如 Codex）与 Gemini 做多轮评审时，先取得用户一次明确授权，之后以 5–6 轮为目标：每轮等待当前原任务取得完整回答后再继续；使用 `continue_task_id` 在同一会话续接，不复制上下文；每轮由调用方核验回答中的证据并补充缺失材料或反例；结束时记录停轮原因和仍存在的分歧。MCP 只提供通用传输与状态查询，不内置某个客户端的专用流程；一次授权只覆盖约定的评审轮次。
 
 ## 隐私与数据
 

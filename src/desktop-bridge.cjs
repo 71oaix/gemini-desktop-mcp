@@ -168,6 +168,15 @@ function resultOf(ledger){
  return out;
 }
 function metadataOf(ledger){return ledger&&ledger.metadata&&typeof ledger.metadata==='object'&&!Array.isArray(ledger.metadata)?ledger.metadata:{};}
+// A send that was observed on this page but has no conversation id yet. Only
+// the original observation target may be sampled read-only for a late bind.
+function lateBindPending(ledger){
+ if(!ledger||ledger.released)return false;
+ const phases=ledger.phases||{};
+ if(!phases.send_intent||!phases.marker_seen||phases.confirmed)return false;
+ if(ledger.status==='completed'||ledger.status==='failed')return false;
+ return true;
+}
 function sendStateOf(ledger){
  if(ledger.phases&&ledger.phases.confirmed)return 'confirmed';
  if(ledger.phases&&ledger.phases.marker_seen)return 'submitted';
@@ -260,7 +269,7 @@ function attach(wc,options={}){
   const journal=new EventJournal({filename:path.join(stateDir,'bridge-events.json')});
   const instance={
    wc,stateDir,readOnly,appVersion,bindingId,closed:false,stopping:false,activeId:null,task:null,tasks:new Map(),uiLockId:null,settingsReservation:null,sessions:new Map(),primarySession:null,port:null,server:null,
-   timers:new Set(),discoveryPath:path.join(stateDir,'discovery.json'),journal,subscriptions:new Set(),journalError:null
+   openingExtraSessions:0,timers:new Set(),discoveryPath:path.join(stateDir,'discovery.json'),journal,subscriptions:new Set(),journalError:null
   };
   INSTANCES.set(stateDir,instance);
   let observation=null;
@@ -295,6 +304,7 @@ function attach(wc,options={}){
   }
   function occupyingGeneration(task){
    if(!task||task.generationSettled)return false;
+   if(task.lateBinding)return true;
    const status=task.ledger.status;
    // Preparing tasks own a real page too; reserve the same bounded slot.
    if(taskDriving(task)&&(status==='connecting'||status==='submitting'))return true;
@@ -367,12 +377,16 @@ function attach(wc,options={}){
   }
   function sessionIsFree(session,task){
    if(!session)return false;
+   // A page kept for a possible late conversation-id bind belongs to that task
+   // until it resolves or is released. Never hand it to a second task.
+   if(session.lateBindTaskId&&session.lateBindTaskId!==task.id)return false;
    // Ownership lasts for the whole preparation/send/generation window. A task
    // that is still typing or selecting a model is not an idle page.
    if(!session.taskId||session.taskId===task.id)return true;
    return false;
   }
   function bindSession(task,session){
+   if(session.lateBindTaskId&&session.lateBindTaskId!==task.id)throw BridgeError('SESSION_BUSY','页面仍保留给另一个任务的迟到会话绑定，未转移',409);
    if(session.taskId&&session.taskId!==task.id){
     const other=instance.tasks.get(session.taskId);
     if(other&&other.session===session&&!other.closed)throw BridgeError('SESSION_BUSY','页面仍由另一个准备中的任务独占，未转移会话绑定',409);
@@ -404,6 +418,11 @@ function attach(wc,options={}){
     const task=taskForSession(session);
     if(!task||!task.run||task.closed)return;
     if(!(taskDriving(task)||occupyingGeneration(task)))return;
+    if(task.lateBinding){
+     task.machine.interrupt('USER_INTERFERENCE','页面由用户切换，已暂停只读恢复');
+     task.abort.abort();
+     return;
+    }
     try{event.preventDefault();}catch{}
     if(taskDriving(task)&&!(task.ledger.phases&&task.ledger.phases.confirmed)){
      instance.stopping=true;
@@ -419,6 +438,9 @@ function attach(wc,options={}){
    session._navigateHandler=onNavigate;
   }
   async function openExtraSession(){
+   const open=[...instance.sessions.values()].filter(session=>session.extra).length;
+   if(open+instance.openingExtraSessions>=MAX_GENERATING)throw BridgeError('SESSION_VIEW_UNAVAILABLE','额外会话页面已达上限，等待原页面恢复或关闭',409);
+   instance.openingExtraSessions++;
    const factory=typeof options.createConversationView==='function'?options.createConversationView:defaultCreateConversationView;
    let created=null,host=null,owned=false;
    try{
@@ -446,7 +468,7 @@ function attach(wc,options={}){
     }
     if(error&&error.code&&typeof error.status==='number')throw error;
     throw BridgeError(error&&error.code||'SESSION_VIEW_UNAVAILABLE',error&&error.message||'无法创建额外会话窗口',409);
-   }
+   }finally{instance.openingExtraSessions--;}
   }
   async function attachSession(task,{recover=false}={}){
    const saved=resultOf(task.ledger);
@@ -479,6 +501,7 @@ function attach(wc,options={}){
   }
   function closeSessionIfUnused(session){
    if(!session||!session.extra)return;
+   if(session.lateBindTaskId)return;
    if(session.taskId&&instance.tasks.has(session.taskId)){
     const owner=instance.tasks.get(session.taskId);
     if(owner&&occupyingGeneration(owner))return;
@@ -740,11 +763,11 @@ function attach(wc,options={}){
   // the hello's bind control carry this task. The pushed state of that handshake
   // is the only evidence the page is bound; wait for it instead of polling, and
   // never touch the page before it arrives.
-  async function bindObservation(task){
+  async function bindObservation(task,{loadDocument=true}={}){
    const host=taskObservation(task);
    if(!host)throw BridgeError('OBSERVATION_UNAVAILABLE','观察器未配置，拒绝页面操作',409);
    host.bindTask({id:task.id});
-   await loadFirstDocument(task,task.session);
+   if(loadDocument)await loadFirstDocument(task,task.session);
    try{
     await host.waitFor(()=>true,{signal:task.abort.signal,deadlineMs:prepareMs});
    }catch(error){
@@ -1069,7 +1092,40 @@ if(hasPageContent(state)&&!ownedByPrepared(state,task.ledger,names))throw page.P
    task.machine.setPhase('ready_to_send');
    return {before};
   }
-  function markerHit(state,marker){return page.isMarkerLast(state.queries||[],marker);}
+  // Attribute replies to a unique user-message turn. A single turn can
+  // expose the same text more than once through the renderer.
+  function markerHit(state,marker){
+   return page.isMarkerLast(Array.isArray(state.queries)?state.queries:[],marker);
+  }
+  function confirmationTarget(task,state){
+   const session=task.session||null;
+   const targetWc=taskWc(task);
+   return {
+    at:nowIso(now()),
+    url:validGeminiUrl(state&&state.url),
+    session_id:session?session.id:null,
+    web_contents_id:targetWc&&Number.isInteger(targetWc.id)?targetWc.id:null
+   };
+  }
+  // Diagnostics name only bounded page facts. The task prompt and attachment
+  // bytes are never copied into the ledger or the error.
+  function confirmationSnapshot(task,stage,extra={}){
+   const state=taskObservation(task)&&taskObservation(task).currentState||{};
+   const queries=Array.isArray(state.queries)?state.queries:[];
+   const hit=markerHit(state,task.ledger.marker);
+   return {
+    stage,at:nowIso(now()),url:validGeminiUrl(state.url),
+    marker_count:hit.count,marker_last:!!hit.last,
+    query_count:queries.length,
+    response_count:Array.isArray(state.responses)?state.responses.length:0,
+    ...extra
+   };
+  }
+  function confirmationFailure(task,code,message,stage,extra={}){
+   const diagnostic=confirmationSnapshot(task,stage,extra);
+   task.ledger.metadata.confirmation_diagnostic=diagnostic;
+   return page.PageError(code,message,diagnostic);
+  }
   async function confirmSubmission(task){
    const wire=task.wire,ledger=task.ledger,marker=ledger.marker;
    let state;
@@ -1080,28 +1136,53 @@ if(hasPageContent(state)&&!ownedByPrepared(state,task.ledger,names))throw page.P
     throw error;
    }
    const hit=markerHit(state,marker);
-   if(hit.count>1)throw page.PageError('MARKER_DUPLICATED','会话中出现多个任务标记，无法安全归属回答');
+   if(hit.count>1)throw confirmationFailure(task,'MARKER_DUPLICATED','多个用户消息含同一任务标记，无法安全归属回答','marker-conflict');
    if(hit.count===1&&!hit.last)throw page.PageError('MARKER_NOT_LAST','任务标记后有后续用户消息，无法安全归属回答');
    if(!hit.count)throw page.PageError('SEND_UNCONFIRMED','发送后未确认任务标记，按未知发送状态处理');
-   ledger.phases.marker_seen={at:nowIso(now()),url:state.url};
-   ledger.metadata.marker_seen_at=nowIso(now());
+   ledger.phases.marker_seen=confirmationTarget(task,state);
+   ledger.metadata.marker_seen_at=ledger.phases.marker_seen.at;
    if(!page.hasConversationId(state.url)){
     commitSnapshot(task,{phase:'awaiting_confirmation',status:'submitting',reason:'marker-seen'});
     try{
-     state=await waitForState(task,s=>{const current=markerHit(s,marker);return current.count===1&&current.last&&page.hasConversationId(s.url);},{deadlineMs:confirmationMs,label:'等待会话 URL',faultGate:true});
+     state=await waitForState(task,s=>{
+      const current=markerHit(s,marker);
+      if(current.count>1)return true;
+      if(current.count===1&&!current.last)return true;
+      // An empty document may be a reload; other messages without our marker
+      // are a real conflict and must stop the wait immediately.
+      if(current.count===0&&(page.hasConversationId(s.url)||(s.queries||[]).length>0))return true;
+      return current.count===1&&current.last&&page.hasConversationId(s.url);
+     },{deadlineMs:confirmationMs,label:'等待会话 URL',faultGate:true});
     }catch(error){
-     throw page.PageError('SEND_UNCONFIRMED_URL','已在页面看到任务标记，但未获得带会话 id 的 URL；保持待确认且绝不重发');
+     if(error.code==='CHAT_NOT_READY'||error.code==='OBSERVATION_TIMEOUT'){
+      throw confirmationFailure(task,'SEND_UNCONFIRMED_URL','已在页面看到任务标记，但未获得带会话 id 的 URL；保持待确认且绝不重发','url-timeout');
+     }
+     const diagnostic=confirmationSnapshot(task,'url-observation-fault',{fault:String(error.code||'INTERNAL')});
+     ledger.metadata.confirmation_diagnostic=diagnostic;
+     if(error&&typeof error==='object'&&!error.details)error.details=diagnostic;
+     throw error;
     }
+    const settled=markerHit(state,marker);
+    if(settled.count>1)throw confirmationFailure(task,'MARKER_DUPLICATED','会话中出现多个任务标记，无法安全归属回答','url-conflict');
+    if(settled.count===1&&!settled.last)throw confirmationFailure(task,'MARKER_NOT_LAST','任务标记后有后续用户消息，无法安全归属回答','url-conflict');
+    if(settled.count===0)throw confirmationFailure(task,'SEND_CONFIRMATION_LOST','等待会话 URL 时任务标记消失；保持待确认且绝不重发','url-conflict');
+    if(!page.hasConversationId(state.url))throw confirmationFailure(task,'SEND_UNCONFIRMED_URL','已在页面看到任务标记，但未获得带会话 id 的 URL；保持待确认且绝不重发','url-timeout');
    }
-   if(wire.conversation_url&&page.hasConversationId(wire.conversation_url)&&!page.sameConversation(state.url,wire.conversation_url))throw page.PageError('CONVERSATION_CHANGED','发送后的会话与目标任务会话不一致');
+   if(wire.conversation_url&&page.hasConversationId(wire.conversation_url)&&!page.sameConversation(state.url,wire.conversation_url))throw confirmationFailure(task,'CONVERSATION_CHANGED','发送后的会话与目标任务会话不一致','url-mismatch',{expected_url:wire.conversation_url});
    const confirmedUrl=state.url;
-   ledger.phases.confirmed={at:nowIso(now()),url:confirmedUrl,marker};
-   ledger.metadata.confirmed_at=nowIso(now());
-   ledger.result={...resultOf(ledger),url:confirmedUrl,submission_confirmed:true,marker};
+   ledger.metadata.confirmation_diagnostic=confirmationSnapshot(task,'confirmed',{confirmed_url:confirmedUrl});
+   recordConfirmedConversation(task,confirmedUrl,'confirmed');
+   return state;
+  }
+  function recordConfirmedConversation(task,confirmedUrl,reason){
+   const ledger=task.ledger;
+   const at=nowIso(now());
+   ledger.phases.confirmed={at,url:confirmedUrl,marker:ledger.marker};
+   ledger.metadata.confirmed_at=at;
+   ledger.result={...resultOf(ledger),url:confirmedUrl,submission_confirmed:true,marker:ledger.marker};
    task.machine.configure({confirmedUrl,beforeResponses:task.machine.beforeResponses,taskId:task.id});
    task.machine.arm();
-   if(ledger.phase!=='generating')commitSnapshot(task,{phase:'generating',status:'generating',reason:'confirmed'});
-   return state;
+   commitSnapshot(task,{phase:'generating',status:ledger.metadata.budget_exhausted?'partial':'generating',reason});
   }
   function clearTaskTimer(task,name){const key=name+'Timer';if(task[key]!==null&&task[key]!==undefined){try{clearTimer(task[key]);}catch{}task[key]=null;}}
   function clearIdleDiagnostic(ledger){
@@ -1609,6 +1690,123 @@ if(hasPageContent(state)&&!ownedByPrepared(state,task.ledger,names))throw page.P
     cleanupTask(task);
    }
   }
+  // The original observed page can publish its conversation id after the
+  // bounded confirmation window. Recovery still has the recorded send intent
+  // and marker, so it may sample only that recorded page read-only. It never
+  // sends, navigates, clicks, opens a view, or accepts a marker from another
+  // conversation.
+  function lateBindExpectedUrls(task){
+   const urls=[];
+   const add=value=>{if(typeof value==='string'&&page.hasConversationId(value)&&!urls.some(url=>page.sameConversation(url,value)))urls.push(value);};
+   add(task.wire&&task.wire.conversation_url);
+   add(task.ledger.input&&task.ledger.input.conversation_url);
+   add(resultOf(task.ledger).url);
+   add(task.ledger.phases&&task.ledger.phases.marker_seen&&task.ledger.phases.marker_seen.url);
+   return urls;
+  }
+  function lateBindEvidence(task,state){
+   const queries=Array.isArray(state&&state.queries)?state.queries:[];
+   const responses=Array.isArray(state&&state.responses)?state.responses:[];
+   const hit=markerHit(state,task.ledger.marker);
+   const index=hit.count===1?queries.findIndex(query=>String(query||'').includes(task.ledger.marker)):-1;
+   const before=Number.isInteger(task.machine.beforeResponses)?task.machine.beforeResponses:0;
+   const url=validGeminiUrl(state.url);
+   const urlId=page.conversationId(url);
+   const expected=lateBindExpectedUrls(task);
+   const mismatch=!!urlId&&expected.some(candidate=>!page.sameConversation(url,candidate));
+   return {hit,index,before,url,urlId,mismatch,expected,queries:queries.length,responses:responses.length};
+  }
+  function lateBindSession(task){
+   const target=task.ledger.phases.marker_seen;
+   // WebContents IDs may be reused after an app restart. The bridge UUID
+   // ties the session recorded at send time to this specific process lifetime.
+   if(task.ledger.binding_id!==bindingId)return {error:'LATE_BIND_TARGET_LOST'};
+   if(typeof target.session_id!=='string')return {error:'LATE_BIND_TARGET_UNKNOWN'};
+   const session=instance.sessions.get(target.session_id);
+   if(!session||session.wc.isDestroyed?.())return {error:'LATE_BIND_TARGET_LOST'};
+   if(target.web_contents_id!==null&&target.web_contents_id!==session.wc.id)return {error:'LATE_BIND_TARGET_CHANGED'};
+   if(!session.observation)return {error:'LATE_BIND_OBSERVATION_UNAVAILABLE'};
+   if(session.taskId&&session.taskId!==task.id)return {error:'LATE_BIND_TARGET_BUSY'};
+   if(session.lateBindTaskId&&session.lateBindTaskId!==task.id)return {error:'LATE_BIND_TARGET_BUSY'};
+   return {session};
+  }
+  function lateBindDiagnostic(task,stage,evidence,extra={}){
+   return {
+    stage,at:nowIso(now()),url:evidence?.url||null,
+    marker_count:evidence?evidence.hit.count:null,marker_last:!!(evidence&&evidence.hit.last),
+    query_count:evidence?evidence.queries:null,response_count:evidence?evidence.responses:null,
+    expected_urls:evidence?evidence.expected.slice(0,4):[],...extra
+   };
+  }
+  function recordLateBindError(task,diagnostic){
+   task.ledger.metadata.late_bind={...metadataOf(task.ledger).late_bind,last_error:diagnostic};
+  }
+  function lateBindFailure(task,code,message,stage,evidence,extra={}){
+   const diagnostic=lateBindDiagnostic(task,stage,evidence,extra);
+   recordLateBindError(task,diagnostic);
+   return page.PageError(code,message,diagnostic);
+  }
+  async function lateBindTask(task){
+   try{
+    if(!acquireUiLock(task))throw BridgeError('BUSY','页面仍由另一个任务占用，不能执行迟到会话绑定',409);
+    ensureBudget(task);
+    armBudget(task);
+    const resolved=lateBindSession(task);
+    if(resolved.error){
+     const message={
+      LATE_BIND_TARGET_LOST:'原观察页面已不存在；保持未确认，不切换页面、不新建会话',
+      LATE_BIND_TARGET_CHANGED:'原观察页面的标识已变化；保持未确认，不切换到其他页面',
+      LATE_BIND_TARGET_UNKNOWN:'没有可靠的原观察目标；保持未确认，不猜测页面',
+      LATE_BIND_TARGET_BUSY:'原观察页面正由其他任务使用；保持未确认，不劫持该页面',
+      LATE_BIND_OBSERVATION_UNAVAILABLE:'原观察页面缺少观察器；保持未确认，不操作页面'
+     }[resolved.error]||'无法定位原观察页面；保持未确认';
+     throw page.PageError(resolved.error,message);
+    }
+    const session=resolved.session;
+    bindSession(task,session);
+    attachThrottle(taskWc(task));
+    await bindObservation(task,{loadDocument:false});
+    task.ledger.metadata.late_bind={...metadataOf(task.ledger).late_bind,session_id:session.id,extra:!!session.extra,started_at:nowIso(now())};
+    let state;
+    try{
+     state=await waitForState(task,s=>{
+      const evidence=lateBindEvidence(task,s);
+      if(evidence.hit.count>1)return true;
+      if(evidence.hit.count===1&&!evidence.hit.last)return true;
+      if(evidence.hit.count===0&&(evidence.urlId||evidence.queries>0))return true;
+      return evidence.hit.count===1&&evidence.hit.last&&!!evidence.urlId;
+     },{deadlineMs:confirmationMs,label:'等待迟到的会话 URL',faultGate:true});
+    }catch(error){
+     const evidence=lateBindEvidence(task,taskObservation(task).currentState||{});
+     if(error.code==='CHAT_NOT_READY'||error.code==='OBSERVATION_TIMEOUT'){
+      throw lateBindFailure(task,'SEND_UNCONFIRMED_URL','恢复时仍未观察到带会话 id 的 URL；保持未确认且绝不重发','late-url-timeout',evidence);
+     }
+     const diagnostic=lateBindDiagnostic(task,'observation-fault',evidence,{fault:String(error.code||'INTERNAL')});
+     recordLateBindError(task,diagnostic);
+     if(error&&typeof error==='object'&&!error.details)error.details=diagnostic;
+     throw error;
+    }
+    const evidence=lateBindEvidence(task,state);
+    if(evidence.hit.count>1)throw lateBindFailure(task,'MARKER_DUPLICATED','迟到恢复看到多个任务标记，无法安全归属回答','conflict',evidence);
+    if(evidence.hit.count===1&&!evidence.hit.last)throw lateBindFailure(task,'MARKER_NOT_LAST','迟到恢复发现任务标记后有其他用户消息，无法安全归属回答','conflict',evidence);
+    if(evidence.hit.count===0)throw lateBindFailure(task,'MARKER_MISMATCH','迟到恢复的页面已找不到原任务标记，保持未确认','missing-marker',evidence);
+    if(evidence.index<evidence.before)throw lateBindFailure(task,'MARKER_BEFORE_BASELINE','迟到恢复看到的标记早于本轮回答槽位，无法安全归属回答','stale-marker',evidence);
+    if(evidence.mismatch)throw lateBindFailure(task,'CONVERSATION_CHANGED','迟到恢复出现带 id 的会话与目标任务会话不一致，保持未确认','url-mismatch',evidence);
+    if(!evidence.urlId)throw lateBindFailure(task,'SEND_UNCONFIRMED_URL','迟到恢复仍未获得带会话 id 的 URL；保持未确认且绝不重发','late-url-timeout',evidence);
+    const confirmedUrl=evidence.url;
+    if(conversationBusy(confirmedUrl,task.id))throw page.PageError('CONVERSATION_BUSY','这个会话正由另一个任务占用，保持待确认');
+    task.ledger.metadata.late_bind={...metadataOf(task.ledger).late_bind,resolved_at:nowIso(now()),resolved_url:confirmedUrl,last_error:null};
+    if(session.lateBindTaskId===task.id)delete session.lateBindTaskId;
+    recordConfirmedConversation(task,confirmedUrl,'late-bind-confirmed');
+    releaseUiLock(task);
+    const outcome=await waitGeneration(task);
+    finalizeOutcome(task,outcome);
+   }catch(error){
+    handleRunFailure(task,error);
+   }finally{
+    cleanupTask(task);
+   }
+  }
   function cleanupTask(task){
    task.generationSettled=true;
    clearTaskTimer(task,'idle');clearTaskTimer(task,'budget');
@@ -1617,7 +1815,14 @@ if(hasPageContent(state)&&!ownedByPrepared(state,task.ledger,names))throw page.P
    task.run=null;
    releaseUiLock(task);
    const session=task.session;
-   if(session&&session.taskId===task.id)session.taskId=null;
+   const keepForLateBind=lateBindPending(task.ledger);
+   if(session){
+    if(session.taskId===task.id)session.taskId=null;
+    // Keep exactly the page that saw the marker; the next recovery may only
+    // sample it read-only. Any other page is cleaned up normally.
+    if(keepForLateBind&&!instance.closed)session.lateBindTaskId=task.id;
+    else if(session.lateBindTaskId===task.id)delete session.lateBindTaskId;
+   }
    instance.tasks.delete(task.id);
    if(instance.task===task)instance.task=[...instance.tasks.values()][0]||null;
    if(instance.activeId===task.id)instance.activeId=instance.uiLockId||(instance.task&&instance.task.id)||null;
@@ -1716,12 +1921,14 @@ if(hasPageContent(state)&&!ownedByPrepared(state,task.ledger,names))throw page.P
    if(!ledger)throw BridgeError('TASK_NOT_FOUND','未找到任务 '+taskId,404);
    if(ledger.released)throw BridgeError('RELEASED','任务已由用户释放，不能自动恢复',409);
    if(ledger.status==='completed')return current;
-   if(ledger.status==='failed'&&!ledger.phases.confirmed)return current;
+   const lateBind=lateBindPending(ledger);
+   if(ledger.status==='failed'&&!ledger.phases.confirmed&&!lateBind)return current;
    const liveBusy=currentTask(taskId);
    if(liveBusy&&liveBusy.run)return snapshotOf(liveBusy.ledger);
    if(generationCount()>=MAX_GENERATING&&!persistedOccupying(ledger))throw BridgeError('GENERATION_LIMIT',`同时正在生成的对话已达上限 ${MAX_GENERATING}`,409);
    const saved=resultOf(ledger);
-   if(!ledger.phases.confirmed||!saved.url||!page.hasConversationId(saved.url)){
+   const confirmedUrl=ledger.phases.confirmed&&saved.url&&page.hasConversationId(saved.url)?saved.url:null;
+   if(!confirmedUrl&&!lateBind){
     if(ledger.status!=='uncertain'&&ledger.status!=='needs_user_action'){
      const temp=taskFor(ledger,{marker:ledger.marker,model:ledger.model,mode:ledger.mode||null,purpose:ledger.purpose,prompt:'',conversation_url:null,timeoutMs:ledger.timeoutMs===undefined?null:ledger.timeoutMs,attachments:[]});
      try{commitSnapshot(temp,{phase:'uncertain',status:'uncertain',error:err('RECOVERY_UNAVAILABLE','缺少已确认的原会话 id，不能自动恢复'),reason:'recover-unavailable'});}
@@ -1729,7 +1936,7 @@ if(hasPageContent(state)&&!ownedByPrepared(state,task.ledger,names))throw page.P
     }
     return snapshotOf(ledger);
    }
-   requireObservation();
+   if(confirmedUrl)requireObservation();
    const live=currentTask(taskId);
    if(live&&live.run)return snapshotOf(live.ledger);
    // After cleanup the previous task keeps a disposed machine and may already
@@ -1739,8 +1946,18 @@ if(hasPageContent(state)&&!ownedByPrepared(state,task.ledger,names))throw page.P
     marker:ledger.marker,model:ledger.model,mode:ledger.mode||null,purpose:ledger.purpose,prompt:'',conversation_url:null,
     timeoutMs:ledger.timeoutMs===undefined?null:ledger.timeoutMs,attachments:[]
    });
-   start(task,recoverTask);
-   return snapshotOf(ledger);
+   task.lateBinding=!confirmedUrl;
+   start(task,confirmedUrl?recoverTask:lateBindTask);
+   const recovered=snapshotOf(ledger);
+   recovered.metadata.execution_active=!!currentTask(taskId)?.run;
+   return recovered;
+  }
+  function releaseLateBindSession(taskId){
+   for(const session of Array.from(instance.sessions.values())){
+    if(session.lateBindTaskId!==taskId)continue;
+    delete session.lateBindTaskId;
+    if(!session.taskId)closeSessionIfUnused(session);
+   }
   }
   function release(taskId){
    const live=currentTask(taskId);
@@ -1751,6 +1968,7 @@ if(hasPageContent(state)&&!ownedByPrepared(state,task.ledger,names))throw page.P
    if(!TERMINAL.has(ledger.status)&&ledger.status!=='uncertain'&&ledger.status!=='needs_user_action')throw BridgeError('RELEASE_DENIED','只有终态或等待人工处理的任务可以释放',409);
    ledger.released=true;
    persist(ledger);
+   releaseLateBindSession(taskId);
    if(instance.task===live)instance.task=[...instance.tasks.values()].find(item=>item!==live)||null;
    if(instance.activeId===taskId)instance.activeId=instance.uiLockId||(instance.task&&instance.task.id)||null;
    return snapshotOf(ledger);
