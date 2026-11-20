@@ -511,8 +511,25 @@ async function install(options={}){
  const afterBase=verifyBaseline(installDir,{appVersion:manifest.appVersion,files:installedFiles,mainSha256:manifest.original.main.sha256});
  const afterUnpacked=verifyUnpackedDisk(installDir,manifest.original.unpacked);
  if(afterBase.length||afterUnpacked.length){
-  await replaceAsar(installDir,backupAsar,manifest.original.asar.sha256).catch(()=>{});
-  throw PatchError('POST_VERIFY_FAILED','安装后校验失败，已尝试回滚：'+JSON.stringify([...afterBase,...afterUnpacked].slice(0,10)));
+  const verificationIssues=[...afterBase,...afterUnpacked].slice(0,10);
+  try{
+   const installedSha=hashFile(target);
+   if(installedSha!==manifest.original.asar.sha256){
+    if(installedSha!==manifest.patched.asar.sha256)throw PatchError('UNKNOWN_HASH','当前 app.asar 哈希未知，拒绝覆盖');
+    await replaceAsar(installDir,backupAsar,manifest.original.asar.sha256);
+   }
+  }catch(restoreFailure){
+   const restoreDetail=`${restoreFailure.code||'ERROR'}: ${restoreFailure.message||String(restoreFailure)}`;
+   const error=PatchError('POST_VERIFY_ROLLBACK_FAILED',`安装后校验失败，且无法确认原厂 app.asar 已恢复。请先不要启动 Gemini。恢复失败原因：${restoreDetail}。安装后校验问题：${JSON.stringify(verificationIssues)}`);
+   error.restored=false;
+   error.verificationIssues=verificationIssues;
+   error.restoreFailure=restoreDetail;
+   throw error;
+  }
+  const error=PatchError('POST_VERIFY_FAILED',`安装后校验失败。原厂 app.asar 已恢复并通过哈希核对。仍有待处理的校验问题：${JSON.stringify(verificationIssues)}`);
+  error.restored=true;
+  error.verificationIssues=verificationIssues;
+  throw error;
  }
  writeJsonAtomic(path.join(backupDir,'install.json'),{
   schema:1,appVersion:manifest.appVersion,patchId:manifest.patchId,installDir,installedAt:new Date().toISOString(),
