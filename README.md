@@ -6,7 +6,9 @@
 
 - Windows 11，当前用户已登录桌面。
 - Node.js 22.13 或更新版本，终端能运行 `node` 和 `npm`。
-- 自行安装与项目基线匹配的 **Gemini 桌面客户端 1.16.0**，在应用里登录 Google 账号，并确认它能正常联网。项目使用这个登录状态，无需 Gemini API 密钥。
+- 自行安装与项目基线匹配的 **Gemini 桌面客户端 1.16.0**，登录 Google 账号并确认能正常联网。无需 Gemini API 密钥。Google 下载页提供当前版本，安装器会核对实际版本和文件哈希。 [下载 Google Gemini 桌面客户端](https://gemini.google/desktop/)
+
+这是独立的第三方项目，与 Google 无隶属关系。项目 ZIP 不含 Gemini 客户端，安装会备份并修改本机 Gemini 的应用包，可能影响官方支持。使用前请确认 Google 的适用条款。
 
 一键安装面向 Gemini 的默认安装位置 `%LOCALAPPDATA%\Google\Gemini\app-1.16.0`。自定义位置见[手动安装](docs/usage/installation.md#手动安装与回滚)。
 
@@ -44,4 +46,4 @@ node client.cjs wait <任务编号>
 - [已验证的场景和已知限制](ACCEPTANCE.md)
 - [开发、打包和维护约定](AGENTS.md)
 
-[MIT 许可证](LICENSE)
+本项目源码采用 MIT 许可证。Gemini 客户端、Google 服务及第三方依赖各自适用其原有条款。 [MIT 许可证](LICENSE)

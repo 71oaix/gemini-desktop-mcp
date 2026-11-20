@@ -14,6 +14,7 @@
 
 ## 目录与安装入口
 
+- Gemini 调用只通过桌面客户端和本机桥接。发布包和 npm 依赖不包含旧网页通道或一次性验收脚本。
 - 运行实现统一放在 `src/`。根目录 `server.cjs`、`client.cjs`、`desktop-patch.cjs` 只是兼容旧命令和旧 MCP 配置的入口，不把业务逻辑搬回根目录。
 - `state/` 是本机运行、staging 和备份根。补丁 `build` 的 staging 必须位于 `state/` 内，且 state 不能位于 Gemini 安装目录内；补丁只替换安装目录的 `resources/app.asar`，不得改写基线以外的 unpacked 文件或原厂布局。
 - `Install.cmd`/`scripts/install.ps1` 只支持默认目录 `%LOCALAPPDATA%\Google\Gemini\app-1.16.0`，其他目录使用[手动安装命令](docs/usage/installation.md#手动安装与回滚)。

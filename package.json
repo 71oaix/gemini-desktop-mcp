@@ -1,14 +1,11 @@
 {
   "name": "gemini-desktop-mcp",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "description": "Local Gemini desktop Q&A tools for MCP clients",
   "license": "MIT",
   "engines": {
     "node": ">=22.13"
-  },
-  "dependencies": {
-    "@playwright/mcp": "0.0.83"
   },
   "scripts": {
     "test": "node --test tests/*.test.cjs",
